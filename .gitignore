@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__/
+*.pyc
+
+backtest-data.xlsx
+backtest-results.xlsx
