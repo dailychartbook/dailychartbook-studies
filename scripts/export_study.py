@@ -12,7 +12,8 @@ import build_dashboard_data
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DIST = ROOT / "dist"
+PUBLISH_DIR = ROOT / "docs"
+CNAME_DOMAIN = "studies.dailychartbook.com"
 WEB_FILES = ["index.html", "styles.css", "app.js", "dashboard-data.js"]
 
 
@@ -100,7 +101,7 @@ def main() -> None:
 
     date_part = payload.get("dateRange", {}).get("end") or datetime.now().date().isoformat()
     slug = slugify(f"{date_part}-{payload.get('title', 'backtest-study')}")
-    study_dir = DIST / slug
+    study_dir = PUBLISH_DIR / slug
     study_dir.mkdir(parents=True, exist_ok=True)
 
     for file_name in WEB_FILES:
@@ -108,16 +109,17 @@ def main() -> None:
 
     (study_dir / "README.txt").write_text(
         "This folder is a self-contained static Backtest Visualizer study. "
-        "Upload the folder contents to any static host, or upload the parent dist folder "
-        "to publish a landing page plus study links.\n",
+        "GitHub Pages publishes the parent docs folder as the public site.\n",
         encoding="utf-8",
     )
 
-    study_dirs = [path for path in DIST.iterdir() if path.is_dir() and (path / "index.html").exists()]
-    (DIST / "index.html").write_text(build_landing_page(study_dirs), encoding="utf-8")
+    study_dirs = [path for path in PUBLISH_DIR.iterdir() if path.is_dir() and (path / "index.html").exists()]
+    (PUBLISH_DIR / "index.html").write_text(build_landing_page(study_dirs), encoding="utf-8")
+    (PUBLISH_DIR / "CNAME").write_text(CNAME_DOMAIN, encoding="utf-8")
 
     print(f"Exported {study_dir}")
-    print(f"Landing page {DIST / 'index.html'}")
+    print(f"Landing page {PUBLISH_DIR / 'index.html'}")
+    print(f"CNAME {PUBLISH_DIR / 'CNAME'}")
 
 
 if __name__ == "__main__":
