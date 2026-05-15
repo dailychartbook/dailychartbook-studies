@@ -42,7 +42,9 @@ def format_display_date(value: str | None) -> str | None:
 
 
 def compact_description(payload: dict) -> str:
-    description = str(payload.get("aiDescription") or "").strip()
+    description = str(payload.get("description") or "").strip()
+    if not description:
+        description = str(payload.get("aiDescription") or "").strip()
     if not description:
         summary_text = payload.get("summaryText") or []
         description = next((str(item).strip() for item in summary_text[1:] if str(item).strip()), "")
@@ -347,8 +349,12 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    date_part = payload.get("dateRange", {}).get("end") or datetime.now().date().isoformat()
-    slug = slugify(f"{date_part}-{payload.get('title', 'backtest-study')}")
+    metadata_slug = str(payload.get("slug") or "").strip()
+    if metadata_slug:
+        slug = slugify(metadata_slug)
+    else:
+        date_part = payload.get("dateRange", {}).get("end") or datetime.now().date().isoformat()
+        slug = slugify(f"{date_part}-{payload.get('title', 'backtest-study')}")
     study_dir = PUBLISH_DIR / slug
     study_dir.mkdir(parents=True, exist_ok=True)
 

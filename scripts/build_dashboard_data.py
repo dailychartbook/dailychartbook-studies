@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_XLSX = ROOT / "backtest-data.xlsx"
 RESULTS_XLSX = ROOT / "backtest-results.xlsx"
 OUTPUT_JS = ROOT / "dashboard-data.js"
+METADATA_JSON = ROOT / "study-metadata.json"
 
 TRADING_DAY_HORIZONS = {
     "1W": 5,
@@ -100,6 +101,24 @@ STAT_LABEL_ALIASES = {
     "all day hit rate": "All-Dataset Hit Rate",
     "baseline hit rate": "All-Dataset Hit Rate",
 }
+
+
+def read_study_metadata() -> dict[str, str]:
+    if not METADATA_JSON.exists():
+        return {}
+    try:
+        raw = json.loads(METADATA_JSON.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Could not parse {METADATA_JSON.name}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ValueError(f"{METADATA_JSON.name} must contain a JSON object.")
+
+    metadata = {}
+    for field in ("title", "description", "slug"):
+        value = raw.get(field)
+        if isinstance(value, str) and value.strip():
+            metadata[field] = value.strip()
+    return metadata
 
 
 def normalize_key(value: Any) -> str:
@@ -559,20 +578,24 @@ def format_percent(value: float | None) -> str:
 
 
 def build_payload() -> dict[str, Any]:
+    metadata = read_study_metadata()
     source = read_source_data()
     results = read_results()
     signals = enrich_signals(source, results)
     comparison = build_comparison(results, signals)
     distribution = build_distribution(signals, results["horizons"])
     cards = build_cards(signals, results)
+    ai_description = generate_description(source, signals, results)
 
     payload = {
-        "title": results["title"],
+        "title": metadata.get("title") or results["title"],
+        "description": metadata.get("description") or ai_description,
+        "slug": metadata.get("slug") or "",
         "assetName": source["assetName"],
         "indicatorName": source["indicatorName"],
         "dateRange": source["dateRange"],
         "generatedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "aiDescription": generate_description(source, signals, results),
+        "aiDescription": ai_description,
         "summaryText": results["summaryText"],
         "horizons": results["horizons"],
         "cardHorizons": CARD_HORIZONS,

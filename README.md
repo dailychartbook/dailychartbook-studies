@@ -4,8 +4,9 @@ Static dashboard for the two workbook inputs in this folder:
 
 - `backtest-data.xlsx`
 - `backtest-results.xlsx`
+- `study-metadata.json`
 
-These raw Excel workbooks stay local and are intentionally ignored by Git. The shareable/public output is generated into `docs/`.
+The raw Excel workbooks stay local and are intentionally ignored by Git. Use `study-metadata.json` to set the public study title, landing-page description, and optional publish slug. If a metadata field is blank or missing, the scripts fall back to the workbook-generated values. The shareable/public output is generated into `docs/`.
 
 Regenerate the dashboard data after replacing either workbook:
 
@@ -24,8 +25,10 @@ This writes a self-contained study folder under `docs/`, updates `docs/index.htm
 For GitHub Pages, set the repo Pages source to the `docs/` folder on your publishing branch. The recurring workflow is just:
 
 1. Replace `backtest-data.xlsx` and `backtest-results.xlsx`.
-2. Run `scripts/export_study.py`.
-3. Commit and push the updated `docs/` folder.
+2. Edit `study-metadata.json`.
+3. Run `scripts/build_dashboard_data.py`.
+4. Run `scripts/export_study.py`.
+5. Commit and push the updated files.
 
 Serve locally:
 
