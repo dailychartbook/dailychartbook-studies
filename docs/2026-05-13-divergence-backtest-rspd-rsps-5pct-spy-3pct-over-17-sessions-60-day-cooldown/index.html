@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Backtest Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Backtest Visualizer</p>
+        <h1 id="study-title">Loading backtest...</h1>
+      </div>
+      <div class="meta-strip" id="study-meta"></div>
+    </header>
+
+    <main>
+      <section class="summary-band">
+        <div class="summary-copy">
+          <p class="section-kicker">AI Summary</p>
+          <p id="ai-description"></p>
+        </div>
+        <div class="cards-grid" id="summary-cards"></div>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Trigger Map</p>
+              <h2 id="trigger-title">Asset and trigger series</h2>
+            </div>
+          </div>
+          <div id="trigger-chart" class="chart chart-tall"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Forward Returns</p>
+              <h2>Average signal vs baseline</h2>
+            </div>
+          </div>
+          <div id="forward-returns-chart" class="chart chart-medium"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Hit Rates</p>
+              <h2>Signal hit rate vs baseline</h2>
+            </div>
+          </div>
+          <div id="hit-rate-chart" class="chart chart-medium"></div>
+        </article>
+
+        <article class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Signal Performance</p>
+              <h2>Forward path after each trigger</h2>
+            </div>
+          </div>
+          <div id="signal-performance-chart" class="chart chart-large"></div>
+        </article>
+
+        <article class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Distribution</p>
+              <h2>Return distribution by horizon</h2>
+            </div>
+          </div>
+          <div id="distribution-chart" class="chart chart-large"></div>
+        </article>
+
+        <article class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Study Summary</p>
+              <h2>Signal summary vs all-dataset baseline</h2>
+            </div>
+          </div>
+          <div id="summary-matrix" class="summary-matrix-wrap"></div>
+        </article>
+
+        <article class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Results Table</p>
+              <h2>Backtest results</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="results-table"></table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+
+    <script src="dashboard-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
