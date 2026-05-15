@@ -6,6 +6,7 @@ import re
 import shutil
 import unicodedata
 from datetime import datetime
+from html import escape
 from pathlib import Path
 
 import build_dashboard_data
@@ -28,65 +29,267 @@ def slugify(text: str, fallback: str = "backtest-study") -> str:
     return normalized[:90].strip("-")
 
 
-def build_landing_page(studies: list[Path]) -> str:
-    links = []
-    for study in sorted(studies):
-        data_file = study / "dashboard-data.js"
-        title = study.name
-        if data_file.exists():
-            text = data_file.read_text(encoding="utf-8")
-            prefix = "window.BACKTEST_DATA = "
-            if text.startswith(prefix):
-                payload = json.loads(text[len(prefix) :].rstrip(";\n"))
-                title = payload.get("title", title)
-        links.append(f'<li><a href="./{study.name}/">{title}</a></li>')
+def format_display_date(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+    return parsed.strftime("%b %-d, %Y")
 
-    items = "\n          ".join(links) if links else "<li>No exported studies yet.</li>"
+
+def compact_description(payload: dict) -> str:
+    description = str(payload.get("aiDescription") or "").strip()
+    if not description:
+        summary_text = payload.get("summaryText") or []
+        description = next((str(item).strip() for item in summary_text[1:] if str(item).strip()), "")
+    if not description:
+        return "Interactive dashboard for this backtest study."
+
+    first_sentence = re.split(r"(?<=[.!?])\s+", description)[0].strip()
+    description = first_sentence or description
+    if len(description) <= 220:
+        return description
+    return description[:217].rstrip() + "..."
+
+
+def read_study_card(study: Path) -> dict:
+    data_file = study / "dashboard-data.js"
+    payload: dict = {}
+    if data_file.exists():
+        text = data_file.read_text(encoding="utf-8")
+        prefix = "window.BACKTEST_DATA = "
+        if text.startswith(prefix):
+            payload = json.loads(text[len(prefix) :].rstrip(";\n"))
+
+    title = str(payload.get("title") or study.name).strip()
+    date_range = payload.get("dateRange") or {}
+    start = format_display_date(date_range.get("start"))
+    end = format_display_date(date_range.get("end"))
+    if start and end:
+        date_label = f"{start} - {end}"
+    else:
+        date_label = end or start or ""
+
+    return {
+        "href": f"./{study.name}/",
+        "title": title,
+        "description": compact_description(payload),
+        "date": date_label,
+    }
+
+
+def build_landing_page(studies: list[Path]) -> str:
+    cards = []
+    for study in sorted(studies):
+        card = read_study_card(study)
+        date = f'<p class="study-date">{escape(card["date"])}</p>' if card["date"] else ""
+        cards.append(
+            f"""<article class="study-card">
+          <div>
+            {date}
+            <h2>{escape(card["title"])}</h2>
+            <p class="study-description">{escape(card["description"])}</p>
+          </div>
+          <a class="study-link" href="{escape(card["href"])}">Open study &rarr;</a>
+        </article>"""
+        )
+
+    items = "\n        ".join(cards) if cards else '<p class="empty-state">No exported studies yet.</p>'
     return f"""<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Backtest Studies</title>
+    <title>Daily Chartbook: Backtest Studies</title>
     <style>
+      :root {{
+        --accent: #26984D;
+        --ink: #171717;
+        --muted: #666f68;
+        --line: #e4e7e2;
+        --soft: #f7f8f5;
+      }}
+
+      * {{
+        box-sizing: border-box;
+      }}
+
       body {{
         margin: 0;
         min-height: 100vh;
-        display: grid;
-        place-items: center;
-        background: #f7f8f5;
-        color: #1d211c;
+        background: #fff;
+        color: var(--ink);
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }}
-      main {{
-        width: min(860px, calc(100vw - 32px));
-        padding: 34px;
-        border: 1px solid #d9ded5;
-        border-radius: 8px;
-        background: #fff;
-        box-shadow: 0 18px 48px rgba(29, 33, 28, 0.08);
+
+      .page-shell {{
+        width: min(1120px, calc(100vw - 36px));
+        margin: 0 auto;
+        padding: 30px 0 56px;
       }}
-      p {{
-        color: #657063;
+
+      .site-nav {{
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: center;
+        padding-bottom: 28px;
+        border-bottom: 1px solid var(--line);
       }}
-      ul {{
-        padding-left: 20px;
-        line-height: 1.75;
+
+      .brand-mark {{
+        color: var(--accent);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
       }}
-      a {{
-        color: #167c62;
+
+      .home-link {{
+        display: inline-flex;
+        align-items: center;
+        min-height: 36px;
+        padding: 8px 13px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--ink);
+        font-size: 0.86rem;
         font-weight: 750;
+        text-decoration: none;
+      }}
+
+      .home-link:hover {{
+        border-color: var(--accent);
+        color: var(--accent);
+      }}
+
+      main {{
+        padding-top: 58px;
+      }}
+
+      .hero {{
+        max-width: 760px;
+        margin-bottom: 30px;
+      }}
+
+      h1 {{
+        margin: 0;
+        max-width: 760px;
+        font-size: clamp(2.1rem, 5vw, 4.6rem);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }}
+
+      p {{
+        color: var(--muted);
+      }}
+
+      .subtitle {{
+        max-width: 560px;
+        margin: 18px 0 0;
+        font-size: clamp(1.05rem, 1.8vw, 1.28rem);
+        line-height: 1.48;
+      }}
+
+      .studies-grid {{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+        gap: 18px;
+        margin-top: 34px;
+      }}
+
+      .study-card {{
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 250px;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 18px 42px rgba(23, 23, 23, 0.06);
+      }}
+
+      .study-date {{
+        margin: 0 0 14px;
+        color: var(--accent);
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }}
+
+      h2 {{
+        margin: 0;
+        color: var(--ink);
+        font-size: 1.42rem;
+        line-height: 1.18;
+        letter-spacing: 0;
+      }}
+
+      .study-description {{
+        margin: 14px 0 0;
+        line-height: 1.55;
+      }}
+
+      .study-link {{
+        margin-top: 26px;
+        color: var(--accent);
+        font-weight: 820;
+        text-decoration: none;
+      }}
+
+      .study-link:hover {{
+        text-decoration: underline;
+      }}
+
+      .empty-state {{
+        padding: 22px;
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        background: var(--soft);
+      }}
+
+      @media (max-width: 640px) {{
+        .page-shell {{
+          width: min(100vw - 28px, 1120px);
+          padding-top: 20px;
+        }}
+
+        .site-nav {{
+          align-items: flex-start;
+          flex-direction: column;
+        }}
+
+        main {{
+          padding-top: 36px;
+        }}
+
+        .study-card {{
+          min-height: 0;
+          padding: 20px;
+        }}
       }}
     </style>
   </head>
   <body>
-    <main>
-      <h1>Backtest Studies</h1>
-      <p>Published dashboards from exported workbook studies.</p>
-      <ul>
+    <div class="page-shell">
+      <header class="site-nav">
+        <div class="brand-mark">Daily Chartbook Research</div>
+        <a class="home-link" href="https://www.dailychartbook.com">Daily Chartbook</a>
+      </header>
+      <main>
+        <section class="hero">
+          <h1>Daily Chartbook: Backtest Studies</h1>
+          <p class="subtitle">Interactive backtest dashboards and market studies.</p>
+        </section>
+        <section class="studies-grid" aria-label="Backtest studies">
           {items}
-      </ul>
-    </main>
+        </section>
+      </main>
+    </div>
   </body>
 </html>
 """
