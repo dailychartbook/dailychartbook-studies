@@ -16,6 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLISH_DIR = ROOT / "docs"
 CNAME_DOMAIN = "studies.dailychartbook.com"
 WEB_FILES = ["index.html", "styles.css", "app.js", "dashboard-data.js"]
+LOGO_FILE = "dc_logo_bnw.png"
+LOGO_SOURCES = [ROOT / LOGO_FILE, ROOT / "DC_Logo_BnW.png"]
 
 
 def slugify(text: str, fallback: str = "backtest-study") -> str:
@@ -80,6 +82,12 @@ def read_study_card(study: Path) -> dict:
     }
 
 
+def copy_logo(destination: Path) -> None:
+    logo_source = next((path for path in LOGO_SOURCES if path.exists()), None)
+    if logo_source:
+        shutil.copy2(logo_source, destination / LOGO_FILE)
+
+
 def build_landing_page(studies: list[Path]) -> str:
     cards = []
     for study in sorted(studies):
@@ -89,7 +97,7 @@ def build_landing_page(studies: list[Path]) -> str:
             f"""<article class="study-card">
           <div>
             {date}
-            <h2>{escape(card["title"])}</h2>
+            <h2><a class="study-title-link" href="{escape(card["href"])}">{escape(card["title"])}</a></h2>
             <p class="study-description">{escape(card["description"])}</p>
           </div>
           <a class="study-link" href="{escape(card["href"])}">Open study &rarr;</a>
@@ -102,7 +110,7 @@ def build_landing_page(studies: list[Path]) -> str:
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Daily Chartbook: Backtest Studies</title>
+    <title>Backtests: Visualized</title>
     <style>
       :root {{
         --accent: #26984D;
@@ -131,8 +139,8 @@ def build_landing_page(studies: list[Path]) -> str:
       }}
 
       .site-nav {{
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
         gap: 18px;
         align-items: center;
         padding-bottom: 28px;
@@ -150,6 +158,7 @@ def build_landing_page(studies: list[Path]) -> str:
       .home-link {{
         display: inline-flex;
         align-items: center;
+        justify-self: end;
         min-height: 36px;
         padding: 8px 13px;
         border: 1px solid var(--line);
@@ -165,17 +174,25 @@ def build_landing_page(studies: list[Path]) -> str:
         color: var(--accent);
       }}
 
+      .site-logo {{
+        display: block;
+        width: 58px;
+        height: 58px;
+        object-fit: contain;
+      }}
+
       main {{
         padding-top: 58px;
       }}
 
       .hero {{
         max-width: 760px;
-        margin-bottom: 30px;
+        margin: 0 auto 30px;
+        text-align: center;
       }}
 
       h1 {{
-        margin: 0;
+        margin: 0 auto;
         max-width: 760px;
         font-size: clamp(2.1rem, 5vw, 4.6rem);
         line-height: 0.98;
@@ -188,7 +205,7 @@ def build_landing_page(studies: list[Path]) -> str:
 
       .subtitle {{
         max-width: 560px;
-        margin: 18px 0 0;
+        margin: 18px auto 0;
         font-size: clamp(1.05rem, 1.8vw, 1.28rem);
         line-height: 1.48;
       }}
@@ -229,6 +246,15 @@ def build_landing_page(studies: list[Path]) -> str:
         letter-spacing: 0;
       }}
 
+      .study-title-link {{
+        color: inherit;
+        text-decoration: none;
+      }}
+
+      .study-title-link:hover {{
+        color: var(--accent);
+      }}
+
       .study-description {{
         margin: 14px 0 0;
         line-height: 1.55;
@@ -259,8 +285,26 @@ def build_landing_page(studies: list[Path]) -> str:
         }}
 
         .site-nav {{
-          align-items: flex-start;
-          flex-direction: column;
+          grid-template-columns: 1fr auto;
+          align-items: center;
+        }}
+
+        .site-logo {{
+          grid-column: 1 / -1;
+          grid-row: 1;
+          justify-self: center;
+          width: 52px;
+          height: 52px;
+        }}
+
+        .brand-mark {{
+          grid-column: 1;
+          grid-row: 2;
+        }}
+
+        .home-link {{
+          grid-column: 2;
+          grid-row: 2;
         }}
 
         main {{
@@ -278,11 +322,12 @@ def build_landing_page(studies: list[Path]) -> str:
     <div class="page-shell">
       <header class="site-nav">
         <div class="brand-mark">Daily Chartbook Research</div>
+        <img class="site-logo" src="{LOGO_FILE}" alt="Daily Chartbook logo">
         <a class="home-link" href="https://www.dailychartbook.com">Daily Chartbook</a>
       </header>
       <main>
         <section class="hero">
-          <h1>Daily Chartbook: Backtest Studies</h1>
+          <h1>Backtests: Visualized</h1>
           <p class="subtitle">Interactive backtest dashboards and market studies.</p>
         </section>
         <section class="studies-grid" aria-label="Backtest studies">
@@ -309,6 +354,7 @@ def main() -> None:
 
     for file_name in WEB_FILES:
         shutil.copy2(ROOT / file_name, study_dir / file_name)
+    copy_logo(study_dir)
 
     (study_dir / "README.txt").write_text(
         "This folder is a self-contained static Backtest Visualizer study. "
@@ -317,6 +363,7 @@ def main() -> None:
     )
 
     study_dirs = [path for path in PUBLISH_DIR.iterdir() if path.is_dir() and (path / "index.html").exists()]
+    copy_logo(PUBLISH_DIR)
     (PUBLISH_DIR / "index.html").write_text(build_landing_page(study_dirs), encoding="utf-8")
     (PUBLISH_DIR / "CNAME").write_text(CNAME_DOMAIN, encoding="utf-8")
 

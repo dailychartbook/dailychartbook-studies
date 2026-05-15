@@ -32,10 +32,31 @@ body {
   display: flex;
   justify-content: space-between;
   gap: 28px;
-  align-items: flex-end;
+  align-items: flex-start;
   padding: 30px clamp(18px, 3vw, 42px) 20px;
   border-bottom: 1px solid var(--line);
   background: var(--paper);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  margin-bottom: 14px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--green);
+  font-size: 0.82rem;
+  font-weight: 760;
+  text-decoration: none;
+  box-shadow: 0 8px 20px rgba(29, 33, 28, 0.05);
+}
+
+.back-link:hover {
+  border-color: rgba(22, 124, 98, 0.45);
+  background: var(--green-soft);
 }
 
 .eyebrow,
@@ -103,6 +124,13 @@ main {
   margin-bottom: 18px;
 }
 
+.summary-intro-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
 .summary-copy,
 .panel,
 .stat-card {
@@ -114,6 +142,10 @@ main {
 
 .summary-copy {
   padding: 20px;
+}
+
+.parameter-card {
+  background: linear-gradient(180deg, #fff 0%, var(--paper-soft) 100%);
 }
 
 .summary-copy p:last-child {
@@ -207,6 +239,28 @@ main {
   gap: 16px;
   align-items: flex-start;
   padding: 18px 18px 0;
+}
+
+.help-button {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper-soft);
+  color: var(--green);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 850;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.help-button:hover,
+.help-button:focus-visible {
+  border-color: rgba(22, 124, 98, 0.45);
+  background: var(--green-soft);
+  outline: none;
 }
 
 .chart {
@@ -313,15 +367,18 @@ main {
 .tooltip {
   position: fixed;
   z-index: 20;
-  max-width: 280px;
-  padding: 10px 12px;
+  width: min(320px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: 12px 14px;
   border: 1px solid rgba(29, 33, 28, 0.12);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 16px 34px rgba(29, 33, 28, 0.16);
   color: var(--ink);
   font-size: 0.8rem;
-  line-height: 1.35;
+  line-height: 1.42;
+  text-align: left;
+  white-space: normal;
   pointer-events: none;
   opacity: 0;
   transform: translate(-50%, calc(-100% - 12px));
@@ -330,7 +387,7 @@ main {
 
 .tooltip strong {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-size: 0.84rem;
 }
 
@@ -410,6 +467,14 @@ tr.note-row td {
   color: var(--ink);
 }
 
+.page-footer {
+  padding: 0 clamp(18px, 3vw, 42px) 42px;
+}
+
+.page-footer .back-link {
+  margin-bottom: 0;
+}
+
 @media (max-width: 1180px) {
   .cards-grid {
     grid-template-columns: repeat(4, minmax(138px, 1fr));
@@ -427,8 +492,8 @@ tr.note-row td {
 }
 
 @media (min-width: 1760px) {
-  .summary-band {
-    grid-template-columns: minmax(300px, 0.9fr) minmax(680px, 1.8fr);
+  .summary-intro-grid {
+    grid-template-columns: minmax(300px, 0.9fr) minmax(380px, 0.85fr);
   }
 }
 
@@ -451,6 +516,10 @@ tr.note-row td {
   }
 
   .summary-callouts {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-intro-grid {
     grid-template-columns: 1fr;
   }
 

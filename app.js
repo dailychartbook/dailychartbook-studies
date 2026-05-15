@@ -59,11 +59,43 @@ function fmtDate(value) {
   return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+function cleanAssetLabel() {
+  return String(data.assetName || "Asset").replace(/\s+(close|price)$/i, "").trim();
+}
+
+function resolveStudiesHref() {
+  const path = window.location.pathname.replace(/\/+$/, "");
+  if (path === "" || path === "/index.html") return "docs/index.html";
+  return "../";
+}
+
 function showTooltip(html, event) {
   tooltip.innerHTML = html;
-  tooltip.style.left = `${event.clientX}px`;
-  tooltip.style.top = `${event.clientY}px`;
+  positionTooltip(event.clientX, event.clientY);
   tooltip.style.opacity = "1";
+}
+
+function showTooltipAtNode(html, node) {
+  const box = node.getBoundingClientRect();
+  tooltip.innerHTML = html;
+  positionTooltip(box.left + box.width / 2, box.top);
+  tooltip.style.opacity = "1";
+}
+
+function positionTooltip(anchorX, anchorY) {
+  const margin = 16;
+  tooltip.style.left = "0px";
+  tooltip.style.top = "0px";
+  const width = tooltip.offsetWidth || 320;
+  const height = tooltip.offsetHeight || 120;
+  const minX = margin + width / 2;
+  const maxX = window.innerWidth - margin - width / 2;
+  const minY = margin + height + 12;
+  const maxY = window.innerHeight - margin;
+  const x = Math.min(Math.max(anchorX, minX), Math.max(minX, maxX));
+  const y = Math.min(Math.max(anchorY, minY), Math.max(minY, maxY));
+  tooltip.style.left = `${x}px`;
+  tooltip.style.top = `${y}px`;
 }
 
 function hideTooltip() {
@@ -206,6 +238,55 @@ function signalTooltip(signal, extra = "") {
     ${resultLine ? `<br>${resultLine}` : ""}`;
 }
 
+function extractTitleCriterion() {
+  const match = String(data.title || "").match(/Backtest:\s*(.*?)(?:\s*\(|$)/i);
+  return match ? match[1].trim() : "";
+}
+
+function extractCooldown() {
+  const match = String(data.title || "").match(/(\d+)[-\s]*(?:trading\s*)?day\s+cooldown/i);
+  return match ? Number(match[1]) : null;
+}
+
+function criterionSentence() {
+  const asset = cleanAssetLabel();
+  const criterion = extractTitleCriterion();
+  const directional = criterion.match(/price\s*(≥|>=|>|≤|<=|<)?\s*([\d.]+)%\s*(above|below)\s*(.+)/i);
+  if (directional) {
+    const operator = directional[1] || ">";
+    const threshold = directional[2];
+    const direction = directional[3].toLowerCase();
+    const indicator = directional[4].trim();
+    const operatorText = {
+      "≥": "at least",
+      ">=": "at least",
+      ">": "more than",
+      "≤": "at most",
+      "<=": "at most",
+      "<": "less than",
+    }[operator] || "more than";
+    return `The signal triggers when ${asset} price is ${operatorText} ${threshold}% ${direction} its ${indicator}.`;
+  }
+  if (criterion) return `The signal trigger is defined as: ${criterion}.`;
+  return `The signal trigger is based on ${data.indicatorName}.`;
+}
+
+function renderParameterDescription() {
+  const target = document.getElementById("parameter-description");
+  const cooldown = extractCooldown();
+  const completed = data.signals.filter((signal) => signal.completed12M).length;
+  const cooldownText = cooldown
+    ? ` After a trigger, the study waits ${cooldown} trading days before counting another signal.`
+    : "";
+  target.textContent = `${criterionSentence()}${cooldownText} The sample includes n=${data.signals.length} signals from ${fmtDate(data.dateRange.start)} to ${fmtDate(data.dateRange.end)}; ${completed} have full 12-month forward windows. Forward returns are compared with all trading days in the dataset.`;
+}
+
+function setupBackLinks() {
+  document.querySelectorAll(".back-link").forEach((link) => {
+    link.setAttribute("href", resolveStudiesHref());
+  });
+}
+
 function renderHeader() {
   document.getElementById("study-title").textContent = data.title;
   document.getElementById("ai-description").textContent = data.aiDescription;
@@ -213,8 +294,9 @@ function renderHeader() {
 
   const meta = document.getElementById("study-meta");
   meta.replaceChildren(
-    el("span", { class: "meta-pill" }, `${data.assetName} asset`),
-    el("span", { class: "meta-pill" }, `${data.indicatorName} trigger`),
+    el("span", { class: "meta-pill" }, `Asset: ${cleanAssetLabel()}`),
+    el("span", { class: "meta-pill" }, `n=${data.signals.length}`),
+    el("span", { class: "meta-pill" }, `Trigger: ${data.indicatorName}`),
     el("span", { class: "meta-pill" }, `${fmtDate(data.dateRange.start)} - ${fmtDate(data.dateRange.end)}`),
     el("span", { class: "meta-pill" }, `${data.dateRange.tradingDays.toLocaleString()} trading days`)
   );
@@ -732,12 +814,32 @@ function renderTable() {
   table.appendChild(tbody);
 }
 
+function setupHelpButtons() {
+  const helpText = {
+    distribution: "<strong>How to read it</strong>The box shows the middle 50% of signal returns for each horizon, with the center line marking the median. Red dots are individual signal outcomes; hover a dot to see the trigger date and market data.",
+    "results-table": "<strong>Bold formatting</strong>Signal return and hit-rate cells are bold when they are greater than the comparable all-dataset result for the same horizon. Z-scores are bold when their absolute value is 2 or greater.",
+  };
+
+  document.querySelectorAll(".help-button").forEach((button) => {
+    const key = button.getAttribute("data-help");
+    const content = helpText[key];
+    if (!content) return;
+    button.addEventListener("mousemove", (event) => showTooltip(content, event));
+    button.addEventListener("focus", () => showTooltipAtNode(content, button));
+    button.addEventListener("click", () => showTooltipAtNode(content, button));
+    button.addEventListener("mouseleave", hideTooltip);
+    button.addEventListener("blur", hideTooltip);
+  });
+}
+
 function renderAll() {
   if (!data) {
     document.body.replaceChildren(el("main", {}, "Run scripts/build_dashboard_data.py to generate dashboard-data.js."));
     return;
   }
+  setupBackLinks();
   renderHeader();
+  renderParameterDescription();
   renderCards();
   renderTriggerChart();
   renderForwardReturns();
@@ -746,6 +848,7 @@ function renderAll() {
   renderDistribution();
   renderSummaryMatrix();
   renderTable();
+  setupHelpButtons();
 }
 
 renderAll();
