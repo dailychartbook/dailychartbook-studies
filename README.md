@@ -1,36 +1,57 @@
 # Backtest Visualizer
 
-Static dashboard for the two workbook inputs in this folder:
+Static dashboard generator for Daily Chartbook backtest studies.
+
+The project uses two local Excel workbooks as inputs:
 
 - `backtest-data.xlsx`
 - `backtest-results.xlsx`
-- `study-metadata.json`
 
-The raw Excel workbooks stay local and are intentionally ignored by Git. Use `study-metadata.json` to set the public study title, landing-page description, and optional publish slug. If a metadata field is blank or missing, the scripts fall back to the workbook-generated values. The shareable/public output is generated into `docs/`.
+These raw Excel files are intentionally local and ignored by Git. Do not commit them to the public repo.
 
-Regenerate the dashboard data after replacing either workbook:
+Public study metadata is controlled by `study-metadata.json`:
+
+- `title`: public dashboard and landing-page title
+- `description`: short landing-page/card description
+- `slug`: exported study folder name inside `docs/`
+
+If a metadata field is blank or missing, the scripts fall back to workbook-generated values.
+
+## Public Output
+
+Public/shareable output lives in `docs/`.
+
+GitHub Pages publishes the `docs/` folder, and that folder powers `studies.dailychartbook.com`. Anything committed inside `docs/` is public.
+
+Each exported study gets its own folder inside `docs/`, and `docs/index.html` is the public landing page.
+
+## Workflow
+
+After replacing either workbook, regenerate the dashboard data:
 
 ```bash
-/Users/pav/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 scripts/build_dashboard_data.py
+python3 scripts/build_dashboard_data.py
 ```
 
 Export a shareable static study bundle:
 
 ```bash
-/Users/pav/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 scripts/export_study.py
+python3 scripts/export_study.py
 ```
 
 This writes a self-contained study folder under `docs/`, updates `docs/index.html` as the public landing page, and writes `docs/CNAME` for `studies.dailychartbook.com`.
 
-For GitHub Pages, set the repo Pages source to the `docs/` folder on your publishing branch. The recurring workflow is just:
+The recurring workflow is:
 
 1. Replace `backtest-data.xlsx` and `backtest-results.xlsx`.
 2. Edit `study-metadata.json`.
-3. Run `scripts/build_dashboard_data.py`.
-4. Run `scripts/export_study.py`.
+3. Run `python3 scripts/build_dashboard_data.py`.
+4. Run `python3 scripts/export_study.py`.
 5. Commit and push the updated files.
 
-Serve locally:
+## Local Preview
+
+Serve the project locally:
 
 ```bash
 python3 -m http.server 8765
