@@ -30,7 +30,8 @@ TRADING_DAY_HORIZONS = {
     "12M": 252,
 }
 
-CARD_HORIZONS = ["1M", "3M", "6M", "9M", "12M"]
+CARD_HORIZONS = ["1W", "2W", "1M", "3M", "6M", "9M", "12M"]
+GENERIC_PRICE_HEADERS = {"open", "high", "low", "close", "adj close", "adjusted close", "volume"}
 
 HORIZON_ALIASES = {
     "1w": "1W",
@@ -145,6 +146,20 @@ def normalize_header(value: Any) -> str:
     return re.sub(r"\s+", " ", text)
 
 
+def clean_summary_line(value: Any) -> str:
+    text = "" if value is None else str(value).strip()
+    text = re.sub(r"^[\u2022*\\-]\s*", "", text).strip()
+    return text
+
+
+def get_summary_section(sections: dict[str, list[str]], name: str) -> list[str]:
+    target = normalize_key(name)
+    for section_name, lines in sections.items():
+        if normalize_key(section_name) == target:
+            return lines
+    return []
+
+
 def canonical_stat_label(value: Any) -> str | None:
     key = normalize_key(value)
     return STAT_LABEL_ALIASES.get(key)
@@ -228,6 +243,30 @@ def average(values: list[float]) -> float | None:
     return sum(clean) / len(clean) if clean else None
 
 
+def choose_source_columns(headers: list[str], sheet_name: str) -> tuple[int, int | None, str, str]:
+    keys = [normalize_key(header) for header in headers]
+    asset_idx = next((idx for idx, key in enumerate(keys) if key in {"close", "adj close", "adjusted close"}), None)
+    if asset_idx is None:
+        asset_idx = 1
+
+    asset_header = headers[asset_idx].strip() if asset_idx < len(headers) else ""
+    asset_key = keys[asset_idx] if asset_idx < len(keys) else ""
+    asset_name = sheet_name if asset_key in GENERIC_PRICE_HEADERS else asset_header
+    if not asset_name:
+        asset_name = sheet_name or "Asset"
+
+    indicator_idx = next(
+        (
+            idx
+            for idx, key in enumerate(keys[1:], start=1)
+            if idx != asset_idx and key and key not in GENERIC_PRICE_HEADERS
+        ),
+        None,
+    )
+    indicator_name = headers[indicator_idx].strip() if indicator_idx is not None else ""
+    return asset_idx, indicator_idx, asset_name, indicator_name
+
+
 def read_source_data() -> dict[str, Any]:
     workbook = openpyxl.load_workbook(DATA_XLSX, data_only=True, read_only=True)
     sheet = workbook[workbook.sheetnames[0]]
@@ -235,20 +274,21 @@ def read_source_data() -> dict[str, Any]:
     if len(headers) < 3:
         raise ValueError("backtest-data.xlsx needs at least Date, asset, and trigger columns.")
 
+    asset_idx, indicator_idx, asset_name, indicator_name = choose_source_columns(headers, sheet.title)
     series: list[dict[str, Any]] = []
     for row in sheet.iter_rows(min_row=2, values_only=True):
         row_date = parse_date(row[0])
-        asset = to_number(row[1])
-        indicator = to_number(row[2])
-        if row_date and asset is not None and indicator is not None:
+        asset = to_number(row[asset_idx]) if asset_idx < len(row) else None
+        indicator = to_number(row[indicator_idx]) if indicator_idx is not None and indicator_idx < len(row) else None
+        if row_date and asset is not None:
             series.append({"date": row_date, "asset": asset, "indicator": indicator})
 
     if not series:
         raise ValueError("No usable rows found in backtest-data.xlsx.")
 
     return {
-        "assetName": headers[1],
-        "indicatorName": headers[2],
+        "assetName": asset_name,
+        "indicatorName": indicator_name,
         "series": series,
         "dateRange": {
             "start": series[0]["date"],
@@ -272,9 +312,9 @@ def find_results_table(workbook: openpyxl.Workbook) -> tuple[openpyxl.worksheet.
     raise ValueError("Could not find a sheet with a 'Signal Date' header.")
 
 
-def read_summary_text(workbook: openpyxl.Workbook) -> tuple[str, list[str]]:
+def read_summary_text(workbook: openpyxl.Workbook) -> tuple[str, list[str], dict[str, list[str]]]:
     if "Summary" not in workbook.sheetnames:
-        return "Backtest Visualizer", []
+        return "Backtest Visualizer", [], {}
     sheet = workbook["Summary"]
     text = []
     for row in sheet.iter_rows(values_only=True):
@@ -282,12 +322,24 @@ def read_summary_text(workbook: openpyxl.Workbook) -> tuple[str, list[str]]:
         if value is not None and str(value).strip():
             text.append(str(value).strip())
     title = text[0] if text else "Backtest Visualizer"
-    return title, text
+    sections: dict[str, list[str]] = {}
+    current_section: str | None = None
+    for line in text[2:]:
+        if re.match(r"^\s*[\u2022*\\-]\s+", line):
+            if current_section:
+                cleaned = clean_summary_line(line)
+                if cleaned:
+                    sections[current_section].append(cleaned)
+            continue
+        current_section = line.strip()
+        if current_section:
+            sections.setdefault(current_section, [])
+    return title, text, sections
 
 
 def read_results() -> dict[str, Any]:
     workbook = openpyxl.load_workbook(RESULTS_XLSX, data_only=True, read_only=False)
-    title, summary_text = read_summary_text(workbook)
+    title, summary_text, summary_sections = read_summary_text(workbook)
     sheet, header_row, header_start_col = find_results_table(workbook)
 
     header_cols = [
@@ -343,6 +395,7 @@ def read_results() -> dict[str, Any]:
     return {
         "title": title,
         "summaryText": summary_text,
+        "summarySections": summary_sections,
         "headers": headers,
         "horizons": horizons,
         "signalRows": signal_rows,
@@ -495,7 +548,8 @@ def build_cards(signals: list[dict[str, Any]], results: dict[str, Any]) -> list[
     ]
 
     horizon_samples: dict[str, list[float]] = {}
-    for horizon in CARD_HORIZONS:
+    card_horizons = [horizon for horizon in CARD_HORIZONS if horizon in results["horizons"]]
+    for horizon in card_horizons:
         horizon_values = [to_number(signal["values"].get(horizon)) for signal in signals]
         clean = [value for value in horizon_values if value is not None]
         horizon_samples[horizon] = clean
@@ -525,7 +579,7 @@ def build_cards(signals: list[dict[str, Any]], results: dict[str, Any]) -> list[
         }
     )
 
-    for horizon in CARD_HORIZONS:
+    for horizon in card_horizons:
         clean = horizon_samples[horizon]
         hit_rate = stat_value(stats, "Signal Hit Rate", horizon)
         if hit_rate is None and clean:
@@ -571,6 +625,30 @@ def generate_description(source: dict[str, Any], signals: list[dict[str, Any]], 
     return " ".join(parts)
 
 
+def generate_summary_description(results: dict[str, Any]) -> str | None:
+    sections = results.get("summarySections") or {}
+    signal_count = get_summary_section(sections, "Signal count")
+    key_findings = get_summary_section(sections, "Key findings")
+    significance = get_summary_section(sections, "Statistical significance")
+
+    parts = []
+    if signal_count:
+        parts.append(signal_count[0])
+    parts.extend(key_findings[:4])
+    if significance:
+        parts.append(significance[0])
+    if not parts:
+        return None
+    return " ".join(parts)
+
+
+def generate_criteria_description(results: dict[str, Any]) -> str | None:
+    methodology = get_summary_section(results.get("summarySections") or {}, "Methodology")
+    if not methodology:
+        return None
+    return " ".join(methodology)
+
+
 def format_percent(value: float | None) -> str:
     if value is None:
         return "n/a"
@@ -586,6 +664,8 @@ def build_payload() -> dict[str, Any]:
     distribution = build_distribution(signals, results["horizons"])
     cards = build_cards(signals, results)
     ai_description = generate_description(source, signals, results)
+    summary_description = generate_summary_description(results)
+    criteria_description = generate_criteria_description(results)
 
     payload = {
         "title": metadata.get("title") or results["title"],
@@ -595,8 +675,10 @@ def build_payload() -> dict[str, Any]:
         "indicatorName": source["indicatorName"],
         "dateRange": source["dateRange"],
         "generatedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "aiDescription": ai_description,
+        "aiDescription": summary_description or ai_description,
+        "criteriaDescription": criteria_description or "",
         "summaryText": results["summaryText"],
+        "summarySections": results.get("summarySections") or {},
         "horizons": results["horizons"],
         "cardHorizons": CARD_HORIZONS,
         "series": source["series"],

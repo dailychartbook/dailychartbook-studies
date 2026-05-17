@@ -18,6 +18,8 @@ CNAME_DOMAIN = "studies.dailychartbook.com"
 WEB_FILES = ["index.html", "styles.css", "app.js", "dashboard-data.js"]
 LOGO_FILE = "dc_logo_bnw.png"
 LOGO_SOURCES = [ROOT / LOGO_FILE, ROOT / "DC_Logo_BnW.png"]
+WATERMARK_FILE = "dc_watermark_w.png"
+WATERMARK_SOURCES = [ROOT / WATERMARK_FILE, ROOT / "DC_Watermark_W.png"]
 
 
 def slugify(text: str, fallback: str = "backtest-study") -> str:
@@ -88,6 +90,12 @@ def copy_logo(destination: Path) -> None:
     logo_source = next((path for path in LOGO_SOURCES if path.exists()), None)
     if logo_source:
         shutil.copy2(logo_source, destination / LOGO_FILE)
+
+
+def copy_watermark(destination: Path) -> None:
+    watermark_source = next((path for path in WATERMARK_SOURCES if path.exists()), None)
+    if watermark_source:
+        shutil.copy2(watermark_source, destination / WATERMARK_FILE)
 
 
 def build_landing_page(studies: list[Path]) -> str:
@@ -361,6 +369,7 @@ def main() -> None:
     for file_name in WEB_FILES:
         shutil.copy2(ROOT / file_name, study_dir / file_name)
     copy_logo(study_dir)
+    copy_watermark(study_dir)
 
     (study_dir / "README.txt").write_text(
         "This folder is a self-contained static Backtest Visualizer study. "
@@ -370,6 +379,7 @@ def main() -> None:
 
     study_dirs = [path for path in PUBLISH_DIR.iterdir() if path.is_dir() and (path / "index.html").exists()]
     copy_logo(PUBLISH_DIR)
+    copy_watermark(PUBLISH_DIR)
     (PUBLISH_DIR / "index.html").write_text(build_landing_page(study_dirs), encoding="utf-8")
     (PUBLISH_DIR / "CNAME").write_text(CNAME_DOMAIN, encoding="utf-8")
 
