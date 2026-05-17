@@ -553,16 +553,16 @@ def build_cards(signals: list[dict[str, Any]], results: dict[str, Any]) -> list[
         horizon_values = [to_number(signal["values"].get(horizon)) for signal in signals]
         clean = [value for value in horizon_values if value is not None]
         horizon_samples[horizon] = clean
-        median_return = stat_value(stats, "Median Signal Return", horizon)
-        if median_return is None:
-            median_return = median(clean)
+        average_return = stat_value(stats, "Average Signal Return", horizon)
+        if average_return is None:
+            average_return = average(clean)
         cards.append(
             {
-                "kind": "medianReturn",
-                "label": f"{horizon} median return",
+                "kind": "averageReturn",
+                "label": f"{horizon} avg. return",
                 "horizon": horizon,
-                "value": median_return,
-                "baseline": stat_value(stats, "Median All-Dataset Return", horizon),
+                "value": average_return,
+                "baseline": stat_value(stats, "Average All-Dataset Return", horizon),
                 "sampleSize": len(clean),
             }
         )

@@ -543,15 +543,16 @@ function renderCards() {
     if (card.kind === "count") {
       valueText = String(card.value);
       detailText = card.detail;
-    } else if (card.kind === "medianReturn") {
+    } else if (card.kind === "medianReturn" || card.kind === "averageReturn") {
       valueText = fmtPct(card.value);
-      detailText = `n=${card.sampleSize}; all-day median ${fmtPct(card.baseline)}`;
+      const baselineLabel = card.kind === "averageReturn" ? "all-day avg." : "all-day median";
+      detailText = `n=${card.sampleSize}; ${baselineLabel} ${fmtPct(card.baseline)}`;
       valueClass += ` ${signClass(card.value)}`;
-      if (card.value > card.baseline) valueClass += " stat-value-benchmark";
+      if (typeof card.baseline === "number" && card.value > card.baseline) valueClass += " stat-value-benchmark";
     } else if (card.kind === "hitRate") {
       valueText = fmtHit(card.value);
       detailText = `n=${card.sampleSize}; all-day hit ${fmtHit(card.baseline)}`;
-      if (card.value > card.baseline) valueClass += " stat-value-benchmark";
+      if (typeof card.baseline === "number" && card.value > card.baseline) valueClass += " stat-value-benchmark";
     } else {
       valueText = fmtPct(card.value);
       detailText = `median ${fmtPct(card.median)}; n=${card.sampleSize}`;

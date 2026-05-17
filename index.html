@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Backtest Visualizer</title>
-    <link rel="stylesheet" href="styles.css?v=weekly-summary-cards">
+    <link rel="stylesheet" href="styles.css?v=avg-return-cards-v2">
   </head>
   <body>
     <header class="topbar">
@@ -20,13 +20,13 @@
       <section class="summary-band">
         <div class="summary-intro-grid">
           <div class="summary-stat-stack" id="summary-feature-cards"></div>
-          <div class="summary-copy">
-            <p class="section-kicker">AI Summary</p>
-            <p id="ai-description"></p>
-          </div>
           <div class="summary-copy parameter-card">
             <p class="section-kicker">Backtest Criteria</p>
             <p id="parameter-description"></p>
+          </div>
+          <div class="summary-copy">
+            <p class="section-kicker">AI Summary</p>
+            <p id="ai-description"></p>
           </div>
         </div>
         <div class="cards-grid" id="summary-cards"></div>

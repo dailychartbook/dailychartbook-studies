@@ -611,7 +611,7 @@ tr.note-row td {
   }
 
   .summary-intro-grid {
-    grid-template-columns: minmax(132px, 0.38fr) minmax(0, 1fr);
+    grid-template-columns: minmax(132px, 0.56fr) repeat(2, minmax(0, 1fr));
   }
 
   .summary-stat-stack {
@@ -620,7 +620,7 @@ tr.note-row td {
   }
 
   .parameter-card {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .panel-actions {
