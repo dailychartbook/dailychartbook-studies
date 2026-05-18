@@ -18,6 +18,8 @@ CNAME_DOMAIN = "studies.dailychartbook.com"
 WEB_FILES = ["index.html", "styles.css", "app.js", "dashboard-data.js"]
 LOGO_FILE = "dc_logo_bnw.png"
 LOGO_SOURCES = [ROOT / LOGO_FILE, ROOT / "DC_Logo_BnW.png"]
+LANDING_LOGO_FILE = "dc-logo-wnb.png"
+LANDING_LOGO_SOURCES = [ROOT / LANDING_LOGO_FILE]
 WATERMARK_FILE = "dc_watermark_w.png"
 WATERMARK_SOURCES = [ROOT / WATERMARK_FILE, ROOT / "DC_Watermark_W.png"]
 
@@ -90,6 +92,12 @@ def copy_logo(destination: Path) -> None:
     logo_source = next((path for path in LOGO_SOURCES if path.exists()), None)
     if logo_source:
         shutil.copy2(logo_source, destination / LOGO_FILE)
+
+
+def copy_landing_logo(destination: Path) -> None:
+    logo_source = next((path for path in LANDING_LOGO_SOURCES if path.exists()), None)
+    if logo_source:
+        shutil.copy2(logo_source, destination / LANDING_LOGO_FILE)
 
 
 def copy_watermark(destination: Path) -> None:
@@ -186,8 +194,8 @@ def build_landing_page(studies: list[Path]) -> str:
 
       .site-logo {{
         display: block;
-        width: 58px;
-        height: 58px;
+        width: 92px;
+        height: 92px;
         object-fit: contain;
       }}
 
@@ -303,8 +311,8 @@ def build_landing_page(studies: list[Path]) -> str:
           grid-column: 1 / -1;
           grid-row: 1;
           justify-self: center;
-          width: 52px;
-          height: 52px;
+          width: 82px;
+          height: 82px;
         }}
 
         .brand-mark {{
@@ -331,8 +339,8 @@ def build_landing_page(studies: list[Path]) -> str:
   <body>
     <div class="page-shell">
       <header class="site-nav">
-        <div class="brand-mark">Daily Chartbook Research</div>
-        <img class="site-logo" src="{LOGO_FILE}" alt="Daily Chartbook logo">
+        <div class="brand-mark">Daily Chartbook Studies</div>
+        <img class="site-logo" src="{LANDING_LOGO_FILE}" alt="Daily Chartbook logo">
         <a class="home-link" href="https://www.dailychartbook.com">Daily Chartbook</a>
       </header>
       <main>
@@ -379,6 +387,7 @@ def main() -> None:
 
     study_dirs = [path for path in PUBLISH_DIR.iterdir() if path.is_dir() and (path / "index.html").exists()]
     copy_logo(PUBLISH_DIR)
+    copy_landing_logo(PUBLISH_DIR)
     copy_watermark(PUBLISH_DIR)
     (PUBLISH_DIR / "index.html").write_text(build_landing_page(study_dirs), encoding="utf-8")
     (PUBLISH_DIR / "CNAME").write_text(CNAME_DOMAIN, encoding="utf-8")
