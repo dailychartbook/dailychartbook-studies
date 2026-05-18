@@ -299,6 +299,7 @@ function canvasToBlob(canvas) {
 async function svgToPngBlob(svgNode) {
   const { width, height } = parseViewBox(svgNode);
   const scale = 2;
+  const footerHeight = 58;
   const clone = svgNode.cloneNode(true);
   clone.setAttribute("width", width);
   clone.setAttribute("height", height);
@@ -316,37 +317,56 @@ async function svgToPngBlob(svgNode) {
     const chartImage = await loadImage(url);
     const canvas = document.createElement("canvas");
     canvas.width = Math.ceil(width * scale);
-    canvas.height = Math.ceil(height * scale);
+    canvas.height = Math.ceil((height + footerHeight) * scale);
+    const chartHeight = Math.ceil(height * scale);
+    const footerTop = chartHeight;
+    const footerHeightPx = footerHeight * scale;
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(chartImage, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(chartImage, 0, 0, canvas.width, chartHeight);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, footerTop, canvas.width, footerHeightPx);
+    ctx.strokeStyle = "#d9ded5";
+    ctx.lineWidth = scale;
+    ctx.beginPath();
+    ctx.moveTo(0, footerTop + 0.5 * scale);
+    ctx.lineTo(canvas.width, footerTop + 0.5 * scale);
+    ctx.stroke();
+
+    const pad = 18 * scale;
+    ctx.save();
+    ctx.fillStyle = "#151515";
+    ctx.font = `${13 * scale}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("studies.dailychartbook.com", pad, footerTop + footerHeightPx / 2);
+    ctx.restore();
 
     const watermark = await getWatermarkImage();
     if (watermark) {
-      const maxWidth = Math.min(190 * scale, canvas.width * 0.24);
-      const maxHeight = Math.min(118 * scale, canvas.height * 0.18);
+      const maxWidth = Math.min(150 * scale, canvas.width * 0.22);
+      const maxHeight = 36 * scale;
       const ratio = Math.min(maxWidth / watermark.naturalWidth, maxHeight / watermark.naturalHeight);
       const watermarkWidth = watermark.naturalWidth * ratio;
       const watermarkHeight = watermark.naturalHeight * ratio;
-      const pad = 18 * scale;
       ctx.save();
-      ctx.globalAlpha = 0.64;
       ctx.drawImage(
         watermark,
         canvas.width - watermarkWidth - pad,
-        canvas.height - watermarkHeight - pad,
+        footerTop + (footerHeightPx - watermarkHeight) / 2,
         watermarkWidth,
         watermarkHeight
       );
       ctx.restore();
     } else {
       ctx.save();
-      ctx.globalAlpha = 0.38;
-      ctx.fillStyle = "#167c62";
-      ctx.font = `${14 * scale}px Inter, ui-sans-serif, system-ui, sans-serif`;
+      ctx.fillStyle = "#151515";
+      ctx.font = `${13 * scale}px Inter, ui-sans-serif, system-ui, sans-serif`;
       ctx.textAlign = "right";
-      ctx.fillText("DAILY CHARTBOOK", canvas.width - 18 * scale, canvas.height - 20 * scale);
+      ctx.textBaseline = "middle";
+      ctx.fillText("Daily Chartbook", canvas.width - pad, footerTop + footerHeightPx / 2);
       ctx.restore();
     }
 
