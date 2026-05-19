@@ -16,8 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLISH_DIR = ROOT / "docs"
 CNAME_DOMAIN = "studies.dailychartbook.com"
 WEB_FILES = ["index.html", "styles.css", "app.js", "dashboard-data.js"]
-LOGO_FILE = "dc_logo_bnw.png"
-LOGO_SOURCES = [ROOT / LOGO_FILE, ROOT / "DC_Logo_BnW.png"]
+FAVICON_FILE = "DC_Logo_BnW.png"
+FAVICON_SOURCES = [ROOT / FAVICON_FILE]
+LOGO_FILE = FAVICON_FILE
+LOGO_SOURCES = [ROOT / LOGO_FILE]
 LANDING_LOGO_FILE = "dc-logo-wnb.png"
 LANDING_LOGO_SOURCES = [ROOT / LANDING_LOGO_FILE]
 WATERMARK_FILE = "dc_watermark_w.png"
@@ -94,6 +96,12 @@ def copy_logo(destination: Path) -> None:
         shutil.copy2(logo_source, destination / LOGO_FILE)
 
 
+def copy_favicon(destination: Path) -> None:
+    favicon_source = next((path for path in FAVICON_SOURCES if path.exists()), None)
+    if favicon_source:
+        shutil.copy2(favicon_source, destination / FAVICON_FILE)
+
+
 def copy_landing_logo(destination: Path) -> None:
     logo_source = next((path for path in LANDING_LOGO_SOURCES if path.exists()), None)
     if logo_source:
@@ -129,6 +137,8 @@ def build_landing_page(studies: list[Path]) -> str:
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Backtests: Visualized</title>
+    <link rel="icon" type="image/png" href="/DC_Logo_BnW.png">
+    <link rel="apple-touch-icon" href="/DC_Logo_BnW.png">
     <style>
       :root {{
         --accent: #26984D;
@@ -376,6 +386,7 @@ def main() -> None:
 
     for file_name in WEB_FILES:
         shutil.copy2(ROOT / file_name, study_dir / file_name)
+    copy_favicon(study_dir)
     copy_logo(study_dir)
     copy_watermark(study_dir)
 
@@ -386,6 +397,7 @@ def main() -> None:
     )
 
     study_dirs = [path for path in PUBLISH_DIR.iterdir() if path.is_dir() and (path / "index.html").exists()]
+    copy_favicon(PUBLISH_DIR)
     copy_logo(PUBLISH_DIR)
     copy_landing_logo(PUBLISH_DIR)
     copy_watermark(PUBLISH_DIR)

@@ -41,6 +41,15 @@ def archive_dirs() -> list[Path]:
     return archives
 
 
+def validate_published_archives(archives: list[Path]) -> None:
+    archive_names = {archive.name for archive in archives}
+    published_names = {study.name for study in study_dirs()}
+    missing = sorted(published_names - archive_names)
+    if missing:
+        joined = ", ".join(missing)
+        raise FileNotFoundError(f"Published study folder(s) missing matching archive(s): {joined}")
+
+
 def validate_archive(archive: Path) -> None:
     missing = [file_name for file_name in ARCHIVE_FILENAMES if not (archive / file_name).exists()]
     if missing:
@@ -87,9 +96,11 @@ def rebuild_all(dry_run: bool = False) -> None:
     archives = archive_dirs()
     for archive in archives:
         validate_archive(archive)
+    validate_published_archives(archives)
 
     if dry_run:
-        print("Dry run: archived studies ready to rebuild:")
+        print("Dry run: every published study has a matching archive.")
+        print("Archived studies ready to rebuild:")
         for archive in archives:
             print(f"- {archive.name}")
         print("No files were changed.")
