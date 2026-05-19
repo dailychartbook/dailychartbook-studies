@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Backtest Visualizer</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=table-image-share">
   </head>
   <body>
     <header class="topbar">
@@ -19,13 +19,14 @@
     <main>
       <section class="summary-band">
         <div class="summary-intro-grid">
-          <div class="summary-copy">
-            <p class="section-kicker">AI Summary</p>
-            <p id="ai-description"></p>
-          </div>
+          <div class="summary-stat-stack" id="summary-feature-cards"></div>
           <div class="summary-copy parameter-card">
             <p class="section-kicker">Backtest Criteria</p>
             <p id="parameter-description"></p>
+          </div>
+          <div class="summary-copy">
+            <p class="section-kicker">AI Summary</p>
+            <p id="ai-description"></p>
           </div>
         </div>
         <div class="cards-grid" id="summary-cards"></div>
@@ -34,9 +35,12 @@
       <section class="dashboard-grid">
         <article class="panel panel-wide">
           <div class="panel-header">
-            <div>
+            <div class="panel-heading">
               <p class="section-kicker">Trigger Map</p>
               <h2 id="trigger-title">Asset and trigger series</h2>
+            </div>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-image="#trigger-chart">Copy image</button>
             </div>
           </div>
           <div id="trigger-chart" class="chart chart-tall"></div>
@@ -44,9 +48,12 @@
 
         <article class="panel">
           <div class="panel-header">
-            <div>
+            <div class="panel-heading">
               <p class="section-kicker">Forward Returns</p>
               <h2>Average signal vs baseline</h2>
+            </div>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-image="#forward-returns-chart">Copy image</button>
             </div>
           </div>
           <div id="forward-returns-chart" class="chart chart-medium"></div>
@@ -54,9 +61,12 @@
 
         <article class="panel">
           <div class="panel-header">
-            <div>
+            <div class="panel-heading">
               <p class="section-kicker">Hit Rates</p>
               <h2>Signal hit rate vs baseline</h2>
+            </div>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-image="#hit-rate-chart">Copy image</button>
             </div>
           </div>
           <div id="hit-rate-chart" class="chart chart-medium"></div>
@@ -64,9 +74,16 @@
 
         <article class="panel panel-wide">
           <div class="panel-header">
-            <div>
+            <div class="panel-heading">
               <p class="section-kicker">Signal Performance</p>
               <h2>Forward path after each trigger</h2>
+            </div>
+            <div class="panel-actions">
+              <label class="signal-select-label" for="signal-highlight-select">Highlight</label>
+              <select class="signal-select" id="signal-highlight-select" aria-label="Highlight a signal path">
+                <option value="">Median signal</option>
+              </select>
+              <button class="share-button" type="button" data-copy-image="#signal-performance-chart">Copy image</button>
             </div>
           </div>
           <div id="signal-performance-chart" class="chart chart-large"></div>
@@ -74,20 +91,27 @@
 
         <article class="panel panel-wide">
           <div class="panel-header">
-            <div>
+            <div class="panel-heading">
               <p class="section-kicker">Distribution</p>
               <h2>Return distribution by horizon</h2>
             </div>
-            <button class="help-button" type="button" data-help="distribution" aria-label="How to read the distribution chart">?</button>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-image="#distribution-chart">Copy image</button>
+              <button class="help-button" type="button" data-help="distribution" aria-label="How to read the distribution chart">?</button>
+            </div>
           </div>
           <div id="distribution-chart" class="chart chart-large"></div>
         </article>
 
         <article class="panel panel-wide">
           <div class="panel-header">
-            <div>
+            <div class="panel-heading">
               <p class="section-kicker">Study Summary</p>
               <h2>Signal summary vs all-dataset baseline</h2>
+            </div>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-table-image="#summary-matrix">Copy image</button>
+              <button class="share-button" type="button" data-copy-table="#summary-matrix table">Copy table</button>
             </div>
           </div>
           <div id="summary-matrix" class="summary-matrix-wrap"></div>
@@ -95,11 +119,15 @@
 
         <article class="panel panel-wide">
           <div class="panel-header">
-            <div>
+            <div class="panel-heading">
               <p class="section-kicker">Results Table</p>
               <h2>Backtest results</h2>
             </div>
-            <button class="help-button" type="button" data-help="results-table" aria-label="How to read the results table formatting">?</button>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-table-image="#results-table">Copy image</button>
+              <button class="share-button" type="button" data-copy-table="#results-table">Copy table</button>
+              <button class="help-button" type="button" data-help="results-table" aria-label="How to read the results table formatting">?</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table id="results-table"></table>

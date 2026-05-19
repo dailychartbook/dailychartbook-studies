@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Backtest Visualizer</title>
-    <link rel="stylesheet" href="styles.css?v=avg-return-cards-v2">
+    <link rel="stylesheet" href="styles.css?v=table-image-share">
   </head>
   <body>
     <header class="topbar">
@@ -110,6 +110,7 @@
               <h2>Signal summary vs all-dataset baseline</h2>
             </div>
             <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-table-image="#summary-matrix">Copy image</button>
               <button class="share-button" type="button" data-copy-table="#summary-matrix table">Copy table</button>
             </div>
           </div>
@@ -123,6 +124,7 @@
               <h2>Backtest results</h2>
             </div>
             <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-table-image="#results-table">Copy image</button>
               <button class="share-button" type="button" data-copy-table="#results-table">Copy table</button>
               <button class="help-button" type="button" data-help="results-table" aria-label="How to read the results table formatting">?</button>
             </div>

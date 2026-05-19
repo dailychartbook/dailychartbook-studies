@@ -296,6 +296,50 @@ function canvasToBlob(canvas) {
   });
 }
 
+async function drawSourceFooter(ctx, canvas, footerTop, footerHeightPx, scale) {
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, footerTop, canvas.width, footerHeightPx);
+  ctx.strokeStyle = "#d9ded5";
+  ctx.lineWidth = scale;
+  ctx.beginPath();
+  ctx.moveTo(0, footerTop + 0.5 * scale);
+  ctx.lineTo(canvas.width, footerTop + 0.5 * scale);
+  ctx.stroke();
+
+  const pad = 18 * scale;
+  ctx.save();
+  ctx.fillStyle = "#151515";
+  ctx.font = `${13 * scale}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText("studies.dailychartbook.com", pad, footerTop + footerHeightPx / 2);
+  ctx.restore();
+
+  const watermark = await getWatermarkImage();
+  if (watermark) {
+    const maxWidth = Math.min(150 * scale, canvas.width * 0.22);
+    const maxHeight = 36 * scale;
+    const ratio = Math.min(maxWidth / watermark.naturalWidth, maxHeight / watermark.naturalHeight);
+    const watermarkWidth = watermark.naturalWidth * ratio;
+    const watermarkHeight = watermark.naturalHeight * ratio;
+    ctx.drawImage(
+      watermark,
+      canvas.width - watermarkWidth - pad,
+      footerTop + (footerHeightPx - watermarkHeight) / 2,
+      watermarkWidth,
+      watermarkHeight
+    );
+  } else {
+    ctx.save();
+    ctx.fillStyle = "#151515";
+    ctx.font = `${13 * scale}px Inter, ui-sans-serif, system-ui, sans-serif`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Daily Chartbook", canvas.width - pad, footerTop + footerHeightPx / 2);
+    ctx.restore();
+  }
+}
+
 async function svgToPngBlob(svgNode) {
   const { width, height } = parseViewBox(svgNode);
   const scale = 2;
@@ -326,49 +370,7 @@ async function svgToPngBlob(svgNode) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(chartImage, 0, 0, canvas.width, chartHeight);
 
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, footerTop, canvas.width, footerHeightPx);
-    ctx.strokeStyle = "#d9ded5";
-    ctx.lineWidth = scale;
-    ctx.beginPath();
-    ctx.moveTo(0, footerTop + 0.5 * scale);
-    ctx.lineTo(canvas.width, footerTop + 0.5 * scale);
-    ctx.stroke();
-
-    const pad = 18 * scale;
-    ctx.save();
-    ctx.fillStyle = "#151515";
-    ctx.font = `${13 * scale}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText("studies.dailychartbook.com", pad, footerTop + footerHeightPx / 2);
-    ctx.restore();
-
-    const watermark = await getWatermarkImage();
-    if (watermark) {
-      const maxWidth = Math.min(150 * scale, canvas.width * 0.22);
-      const maxHeight = 36 * scale;
-      const ratio = Math.min(maxWidth / watermark.naturalWidth, maxHeight / watermark.naturalHeight);
-      const watermarkWidth = watermark.naturalWidth * ratio;
-      const watermarkHeight = watermark.naturalHeight * ratio;
-      ctx.save();
-      ctx.drawImage(
-        watermark,
-        canvas.width - watermarkWidth - pad,
-        footerTop + (footerHeightPx - watermarkHeight) / 2,
-        watermarkWidth,
-        watermarkHeight
-      );
-      ctx.restore();
-    } else {
-      ctx.save();
-      ctx.fillStyle = "#151515";
-      ctx.font = `${13 * scale}px Inter, ui-sans-serif, system-ui, sans-serif`;
-      ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-      ctx.fillText("Daily Chartbook", canvas.width - pad, footerTop + footerHeightPx / 2);
-      ctx.restore();
-    }
+    await drawSourceFooter(ctx, canvas, footerTop, footerHeightPx, scale);
 
     return await canvasToBlob(canvas);
   } finally {
@@ -389,6 +391,119 @@ function tableToTsv(table) {
       .map((cell) => cell.textContent.replace(/\s+/g, " ").trim())
       .join("\t"))
     .join("\n");
+}
+
+function tableColumnMetrics(table) {
+  const rows = Array.from(table.rows);
+  const columnCount = Math.max(...rows.map((row) => row.cells.length), 0);
+  const widths = Array(columnCount).fill(92);
+  const rowHeights = rows.map((row) => {
+    let rowHeight = 38;
+    Array.from(row.cells).forEach((cell, idx) => {
+      const rect = cell.getBoundingClientRect();
+      widths[idx] = Math.max(widths[idx], Math.ceil(rect.width || (idx === 0 ? 210 : 92)));
+      rowHeight = Math.max(rowHeight, Math.ceil(rect.height || 38));
+    });
+    return rowHeight;
+  });
+  return { rows, widths, rowHeights, width: widths.reduce((sum, width) => sum + width, 0), height: rowHeights.reduce((sum, height) => sum + height, 0) };
+}
+
+function drawCellText(ctx, text, x, y, width, height, align = "center") {
+  const inset = 10;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x + 1, y + 1, width - 2, height - 2);
+  ctx.clip();
+  ctx.textAlign = align;
+  ctx.textBaseline = "middle";
+  const textX = align === "left" ? x + inset : x + width / 2;
+  ctx.fillText(text, textX, y + height / 2, Math.max(1, width - inset * 2));
+  ctx.restore();
+}
+
+function drawExportTable(ctx, table, x, y, metrics) {
+  const line = "#d9ded5";
+  let currentY = y;
+  metrics.rows.forEach((row, rowIdx) => {
+    let currentX = x;
+    const rowHeight = metrics.rowHeights[rowIdx];
+    Array.from(row.cells).forEach((cell, cellIdx) => {
+      const width = metrics.widths[cellIdx];
+      const isHeader = cell.tagName === "TH";
+      const isFirstColumn = cellIdx === 0;
+      const text = cell.textContent.replace(/\s+/g, " ").trim();
+      const positive = cell.classList.contains("positive-fill");
+      const negative = cell.classList.contains("negative-fill");
+      const bold = cell.classList.contains("benchmark-win") || cell.parentElement?.classList.contains("stat-row") || cell.parentElement?.classList.contains("summary-signal-row") || (isFirstColumn && !cell.parentElement?.classList.contains("signal-row"));
+
+      ctx.fillStyle = isHeader ? "#167c62" : positive ? "#c6efce" : negative ? "#ffc7ce" : "#ffffff";
+      ctx.fillRect(currentX, currentY, width, rowHeight);
+      ctx.strokeStyle = line;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(currentX, currentY, width, rowHeight);
+      ctx.fillStyle = isHeader ? "#ffffff" : positive ? "#115c3f" : negative ? "#8b1a16" : "#1d211c";
+      ctx.font = `${isHeader || bold ? 700 : 500} ${isHeader ? 12 : 13}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      drawCellText(ctx, text, currentX, currentY, width, rowHeight, isFirstColumn && !cell.parentElement?.classList.contains("signal-row") ? "left" : "center");
+      currentX += width;
+    });
+    currentY += rowHeight;
+  });
+}
+
+function drawSummaryCallouts(ctx, callouts, x, y, width, height) {
+  const gap = 12;
+  const cardWidth = (width - gap * (callouts.length - 1)) / callouts.length;
+  callouts.forEach((callout, idx) => {
+    const cardX = x + idx * (cardWidth + gap);
+    const label = callout.querySelector(".summary-callout-label")?.textContent.trim() || "";
+    const value = callout.querySelector(".summary-callout-value")?.textContent.trim() || "";
+    const detail = callout.querySelector(".summary-callout-detail")?.textContent.trim() || "";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(cardX, y, cardWidth, height);
+    ctx.fillStyle = "#167c62";
+    ctx.fillRect(cardX, y, 3, height);
+    ctx.fillStyle = "#657063";
+    ctx.font = "700 11px Inter, ui-sans-serif, system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(label.toUpperCase(), cardX + 14, y + 8, cardWidth - 24);
+    ctx.fillStyle = "#1d211c";
+    ctx.font = "800 21px Inter, ui-sans-serif, system-ui, sans-serif";
+    ctx.fillText(value, cardX + 14, y + 31, cardWidth - 24);
+    ctx.fillStyle = "#657063";
+    ctx.font = "500 12px Inter, ui-sans-serif, system-ui, sans-serif";
+    ctx.fillText(detail, cardX + 14, y + 59, cardWidth - 24);
+  });
+}
+
+async function tableSectionToPngBlob(target) {
+  const table = target.matches("table") ? target : target.querySelector("table");
+  if (!table) throw new Error("Table is not ready yet.");
+  const scale = 2;
+  const footerHeight = 58;
+  const pad = 18;
+  const callouts = target.querySelectorAll(".summary-callout");
+  const metrics = tableColumnMetrics(table);
+  const calloutHeight = callouts.length ? 84 : 0;
+  const gap = callouts.length ? 16 : 0;
+  const contentWidth = metrics.width + pad * 2;
+  const contentHeight = pad + calloutHeight + gap + metrics.height + pad;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(contentWidth * scale);
+  canvas.height = Math.ceil((contentHeight + footerHeight) * scale);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.scale(scale, scale);
+  if (callouts.length) {
+    drawSummaryCallouts(ctx, Array.from(callouts), pad, pad, metrics.width, calloutHeight);
+  }
+  drawExportTable(ctx, table, pad, pad + calloutHeight + gap, metrics);
+  ctx.restore();
+  await drawSourceFooter(ctx, canvas, contentHeight * scale, footerHeight * scale, scale);
+  return await canvasToBlob(canvas);
 }
 
 async function writeTextToClipboard(text) {
@@ -446,6 +561,12 @@ async function copyTable(button) {
   await writeTextToClipboard(tableToTsv(table));
 }
 
+async function copyTableImage(button) {
+  const target = document.querySelector(button.dataset.copyTableImage);
+  if (!target) throw new Error("Table is not ready yet.");
+  await writePngToClipboard(tableSectionToPngBlob(target));
+}
+
 function setupShareButtons() {
   document.querySelectorAll(".share-button").forEach((button) => {
     if (button.dataset.shareReady) return;
@@ -455,6 +576,7 @@ function setupShareButtons() {
       button.disabled = true;
       try {
         if (button.dataset.copyImage) await copyChartImage(button);
+        else if (button.dataset.copyTableImage) await copyTableImage(button);
         else if (button.dataset.copyTable) await copyTable(button);
         setShareButtonState(button, "Copied");
       } catch (error) {
@@ -1053,6 +1175,7 @@ function renderSummaryMatrix() {
 
 function shouldPercent(rowLabel, header) {
   if (!header || header === "Signal Date") return false;
+  if (rowLabel.includes("N (signals with forward data)")) return false;
   if (header.includes("%")) return true;
   if (header.includes("MaxDD")) return true;
   if (data.horizons.includes(header)) return !rowLabel.includes("Z-Score");
@@ -1066,6 +1189,7 @@ function isContextPercentHeader(header) {
 function formatTableCell(value, rowLabel, header) {
   if (value === null || value === undefined) return "";
   if (typeof value === "number") {
+    if (rowLabel.includes("N (signals with forward data)")) return value.toFixed(0);
     if (shouldPercent(rowLabel, header)) return fmtPctPlain(value);
     if (rowLabel.includes("Z-Score")) return value.toFixed(2);
     return fmtNumber(value, 2);

@@ -226,6 +226,369 @@ function drawVerticalGrid(root, xScale, ticks, plot) {
   });
 }
 
+function svgExportStyles() {
+  return `
+    .axis, .axis text, .axis-label, .legend text {
+      fill: #657063;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12px;
+      font-weight: 620;
+    }
+    .grid-line { stroke: #e6eae2; stroke-width: 1; }
+    .axis-line { stroke: #b9c0b4; stroke-width: 1; }
+  `;
+}
+
+function parseViewBox(svgNode) {
+  const viewBox = svgNode.getAttribute("viewBox");
+  if (viewBox) {
+    const [, , width, height] = viewBox.split(/\s+/).map(Number);
+    if (Number.isFinite(width) && Number.isFinite(height)) return { width, height };
+  }
+  return {
+    width: Math.max(1, svgNode.clientWidth || 1200),
+    height: Math.max(1, svgNode.clientHeight || 640),
+  };
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+let watermarkImagePromise;
+
+function getWatermarkImage() {
+  if (!watermarkImagePromise) {
+    watermarkImagePromise = (async () => {
+      const sources = [
+        "dc_watermark_w.png",
+        "DC_Watermark_W.png",
+        "../dc_watermark_w.png",
+        "../DC_Watermark_W.png",
+        "dc_logo_bnw.png",
+        "DC_Logo_BnW.png",
+        "../dc_logo_bnw.png",
+      ];
+      for (const source of sources) {
+        try {
+          return await loadImage(source);
+        } catch {
+          // Try the next local/exported watermark path.
+        }
+      }
+      return null;
+    })();
+  }
+  return watermarkImagePromise;
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Could not export chart image."));
+    }, "image/png");
+  });
+}
+
+async function drawSourceFooter(ctx, canvas, footerTop, footerHeightPx, scale) {
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, footerTop, canvas.width, footerHeightPx);
+  ctx.strokeStyle = "#d9ded5";
+  ctx.lineWidth = scale;
+  ctx.beginPath();
+  ctx.moveTo(0, footerTop + 0.5 * scale);
+  ctx.lineTo(canvas.width, footerTop + 0.5 * scale);
+  ctx.stroke();
+
+  const pad = 18 * scale;
+  ctx.save();
+  ctx.fillStyle = "#151515";
+  ctx.font = `${13 * scale}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText("studies.dailychartbook.com", pad, footerTop + footerHeightPx / 2);
+  ctx.restore();
+
+  const watermark = await getWatermarkImage();
+  if (watermark) {
+    const maxWidth = Math.min(150 * scale, canvas.width * 0.22);
+    const maxHeight = 36 * scale;
+    const ratio = Math.min(maxWidth / watermark.naturalWidth, maxHeight / watermark.naturalHeight);
+    const watermarkWidth = watermark.naturalWidth * ratio;
+    const watermarkHeight = watermark.naturalHeight * ratio;
+    ctx.drawImage(
+      watermark,
+      canvas.width - watermarkWidth - pad,
+      footerTop + (footerHeightPx - watermarkHeight) / 2,
+      watermarkWidth,
+      watermarkHeight
+    );
+  } else {
+    ctx.save();
+    ctx.fillStyle = "#151515";
+    ctx.font = `${13 * scale}px Inter, ui-sans-serif, system-ui, sans-serif`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Daily Chartbook", canvas.width - pad, footerTop + footerHeightPx / 2);
+    ctx.restore();
+  }
+}
+
+async function svgToPngBlob(svgNode) {
+  const { width, height } = parseViewBox(svgNode);
+  const scale = 2;
+  const footerHeight = 58;
+  const clone = svgNode.cloneNode(true);
+  clone.setAttribute("width", width);
+  clone.setAttribute("height", height);
+  clone.setAttribute("xmlns", SVG_NS);
+
+  const style = document.createElementNS(SVG_NS, "style");
+  style.textContent = svgExportStyles();
+  clone.insertBefore(style, clone.firstChild);
+
+  const serialized = new XMLSerializer().serializeToString(clone);
+  const svgBlob = new Blob([serialized], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+
+  try {
+    const chartImage = await loadImage(url);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(width * scale);
+    canvas.height = Math.ceil((height + footerHeight) * scale);
+    const chartHeight = Math.ceil(height * scale);
+    const footerTop = chartHeight;
+    const footerHeightPx = footerHeight * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(chartImage, 0, 0, canvas.width, chartHeight);
+
+    await drawSourceFooter(ctx, canvas, footerTop, footerHeightPx, scale);
+
+    return await canvasToBlob(canvas);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function writePngToClipboard(blobPromise) {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+    throw new Error("Image clipboard copy is not available in this browser context.");
+  }
+  await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+}
+
+function tableToTsv(table) {
+  return Array.from(table.rows)
+    .map((row) => Array.from(row.cells)
+      .map((cell) => cell.textContent.replace(/\s+/g, " ").trim())
+      .join("\t"))
+    .join("\n");
+}
+
+function tableColumnMetrics(table) {
+  const rows = Array.from(table.rows);
+  const columnCount = Math.max(...rows.map((row) => row.cells.length), 0);
+  const widths = Array(columnCount).fill(92);
+  const rowHeights = rows.map((row) => {
+    let rowHeight = 38;
+    Array.from(row.cells).forEach((cell, idx) => {
+      const rect = cell.getBoundingClientRect();
+      widths[idx] = Math.max(widths[idx], Math.ceil(rect.width || (idx === 0 ? 210 : 92)));
+      rowHeight = Math.max(rowHeight, Math.ceil(rect.height || 38));
+    });
+    return rowHeight;
+  });
+  return { rows, widths, rowHeights, width: widths.reduce((sum, width) => sum + width, 0), height: rowHeights.reduce((sum, height) => sum + height, 0) };
+}
+
+function drawCellText(ctx, text, x, y, width, height, align = "center") {
+  const inset = 10;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x + 1, y + 1, width - 2, height - 2);
+  ctx.clip();
+  ctx.textAlign = align;
+  ctx.textBaseline = "middle";
+  const textX = align === "left" ? x + inset : x + width / 2;
+  ctx.fillText(text, textX, y + height / 2, Math.max(1, width - inset * 2));
+  ctx.restore();
+}
+
+function drawExportTable(ctx, table, x, y, metrics) {
+  const line = "#d9ded5";
+  let currentY = y;
+  metrics.rows.forEach((row, rowIdx) => {
+    let currentX = x;
+    const rowHeight = metrics.rowHeights[rowIdx];
+    Array.from(row.cells).forEach((cell, cellIdx) => {
+      const width = metrics.widths[cellIdx];
+      const isHeader = cell.tagName === "TH";
+      const isFirstColumn = cellIdx === 0;
+      const text = cell.textContent.replace(/\s+/g, " ").trim();
+      const positive = cell.classList.contains("positive-fill");
+      const negative = cell.classList.contains("negative-fill");
+      const bold = cell.classList.contains("benchmark-win") || cell.parentElement?.classList.contains("stat-row") || cell.parentElement?.classList.contains("summary-signal-row") || (isFirstColumn && !cell.parentElement?.classList.contains("signal-row"));
+
+      ctx.fillStyle = isHeader ? "#167c62" : positive ? "#c6efce" : negative ? "#ffc7ce" : "#ffffff";
+      ctx.fillRect(currentX, currentY, width, rowHeight);
+      ctx.strokeStyle = line;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(currentX, currentY, width, rowHeight);
+      ctx.fillStyle = isHeader ? "#ffffff" : positive ? "#115c3f" : negative ? "#8b1a16" : "#1d211c";
+      ctx.font = `${isHeader || bold ? 700 : 500} ${isHeader ? 12 : 13}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      drawCellText(ctx, text, currentX, currentY, width, rowHeight, isFirstColumn && !cell.parentElement?.classList.contains("signal-row") ? "left" : "center");
+      currentX += width;
+    });
+    currentY += rowHeight;
+  });
+}
+
+function drawSummaryCallouts(ctx, callouts, x, y, width, height) {
+  const gap = 12;
+  const cardWidth = (width - gap * (callouts.length - 1)) / callouts.length;
+  callouts.forEach((callout, idx) => {
+    const cardX = x + idx * (cardWidth + gap);
+    const label = callout.querySelector(".summary-callout-label")?.textContent.trim() || "";
+    const value = callout.querySelector(".summary-callout-value")?.textContent.trim() || "";
+    const detail = callout.querySelector(".summary-callout-detail")?.textContent.trim() || "";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(cardX, y, cardWidth, height);
+    ctx.fillStyle = "#167c62";
+    ctx.fillRect(cardX, y, 3, height);
+    ctx.fillStyle = "#657063";
+    ctx.font = "700 11px Inter, ui-sans-serif, system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(label.toUpperCase(), cardX + 14, y + 8, cardWidth - 24);
+    ctx.fillStyle = "#1d211c";
+    ctx.font = "800 21px Inter, ui-sans-serif, system-ui, sans-serif";
+    ctx.fillText(value, cardX + 14, y + 31, cardWidth - 24);
+    ctx.fillStyle = "#657063";
+    ctx.font = "500 12px Inter, ui-sans-serif, system-ui, sans-serif";
+    ctx.fillText(detail, cardX + 14, y + 59, cardWidth - 24);
+  });
+}
+
+async function tableSectionToPngBlob(target) {
+  const table = target.matches("table") ? target : target.querySelector("table");
+  if (!table) throw new Error("Table is not ready yet.");
+  const scale = 2;
+  const footerHeight = 58;
+  const pad = 18;
+  const callouts = target.querySelectorAll(".summary-callout");
+  const metrics = tableColumnMetrics(table);
+  const calloutHeight = callouts.length ? 84 : 0;
+  const gap = callouts.length ? 16 : 0;
+  const contentWidth = metrics.width + pad * 2;
+  const contentHeight = pad + calloutHeight + gap + metrics.height + pad;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(contentWidth * scale);
+  canvas.height = Math.ceil((contentHeight + footerHeight) * scale);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.scale(scale, scale);
+  if (callouts.length) {
+    drawSummaryCallouts(ctx, Array.from(callouts), pad, pad, metrics.width, calloutHeight);
+  }
+  drawExportTable(ctx, table, pad, pad + calloutHeight + gap, metrics);
+  ctx.restore();
+  await drawSourceFooter(ctx, canvas, contentHeight * scale, footerHeight * scale, scale);
+  return await canvasToBlob(canvas);
+}
+
+async function writeTextToClipboard(text) {
+  if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
+    try {
+      const blob = new Blob([text], { type: "text/plain" });
+      await navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
+      return;
+    } catch {
+      // Try the simpler text API next.
+    }
+  }
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall back to the older copy command when browser permissions are fussy.
+    }
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) throw new Error("Text clipboard copy is not available in this browser context.");
+}
+
+function setShareButtonState(button, label, stateClass = "is-copied") {
+  const original = button.dataset.label || button.textContent;
+  button.dataset.label = original;
+  button.classList.remove("is-copied", "is-error");
+  button.classList.add(stateClass);
+  button.textContent = label;
+  window.setTimeout(() => {
+    button.classList.remove("is-copied", "is-error");
+    button.textContent = button.dataset.label;
+  }, 1600);
+}
+
+async function copyChartImage(button) {
+  const container = document.querySelector(button.dataset.copyImage);
+  const svgNode = container?.querySelector("svg");
+  if (!svgNode) throw new Error("Chart is not ready yet.");
+  await writePngToClipboard(svgToPngBlob(svgNode));
+}
+
+async function copyTable(button) {
+  const table = document.querySelector(button.dataset.copyTable);
+  if (!table) throw new Error("Table is not ready yet.");
+  await writeTextToClipboard(tableToTsv(table));
+}
+
+async function copyTableImage(button) {
+  const target = document.querySelector(button.dataset.copyTableImage);
+  if (!target) throw new Error("Table is not ready yet.");
+  await writePngToClipboard(tableSectionToPngBlob(target));
+}
+
+function setupShareButtons() {
+  document.querySelectorAll(".share-button").forEach((button) => {
+    if (button.dataset.shareReady) return;
+    button.dataset.shareReady = "true";
+    button.dataset.label = button.textContent;
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        if (button.dataset.copyImage) await copyChartImage(button);
+        else if (button.dataset.copyTableImage) await copyTableImage(button);
+        else if (button.dataset.copyTable) await copyTable(button);
+        setShareButtonState(button, "Copied");
+      } catch (error) {
+        console.error(error);
+        setShareButtonState(button, "Copy failed", "is-error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+}
+
 function signalTooltip(signal, extra = "") {
   const resultLine = data.horizons
     .filter((horizon) => signal.values[horizon] !== null && signal.values[horizon] !== undefined)
@@ -273,6 +636,10 @@ function criterionSentence() {
 
 function renderParameterDescription() {
   const target = document.getElementById("parameter-description");
+  if (data.criteriaDescription) {
+    target.textContent = data.criteriaDescription;
+    return;
+  }
   const cooldown = extractCooldown();
   const completed = data.signals.filter((signal) => signal.completed12M).length;
   const cooldownText = cooldown
@@ -304,10 +671,13 @@ function renderHeader() {
 
 function renderCards() {
   const grid = document.getElementById("summary-cards");
+  const featureGrid = document.getElementById("summary-feature-cards");
   grid.replaceChildren();
+  featureGrid.replaceChildren();
   data.cards.forEach((card) => {
     const node = el("div", { class: `stat-card card-${card.kind}` });
-    node.appendChild(el("div", { class: "stat-label" }, card.label));
+    const label = card.kind === "drawdown" ? "12M MaxDD" : card.label;
+    node.appendChild(el("div", { class: "stat-label" }, label));
 
     let valueText = "";
     let detailText = "";
@@ -315,15 +685,16 @@ function renderCards() {
     if (card.kind === "count") {
       valueText = String(card.value);
       detailText = card.detail;
-    } else if (card.kind === "medianReturn") {
+    } else if (card.kind === "medianReturn" || card.kind === "averageReturn") {
       valueText = fmtPct(card.value);
-      detailText = `n=${card.sampleSize}; all-day median ${fmtPct(card.baseline)}`;
+      const baselineLabel = card.kind === "averageReturn" ? "all-day avg." : "all-day median";
+      detailText = `n=${card.sampleSize}; ${baselineLabel} ${fmtPct(card.baseline)}`;
       valueClass += ` ${signClass(card.value)}`;
-      if (card.value > card.baseline) valueClass += " stat-value-benchmark";
+      if (typeof card.baseline === "number" && card.value > card.baseline) valueClass += " stat-value-benchmark";
     } else if (card.kind === "hitRate") {
       valueText = fmtHit(card.value);
       detailText = `n=${card.sampleSize}; all-day hit ${fmtHit(card.baseline)}`;
-      if (card.value > card.baseline) valueClass += " stat-value-benchmark";
+      if (typeof card.baseline === "number" && card.value > card.baseline) valueClass += " stat-value-benchmark";
     } else {
       valueText = fmtPct(card.value);
       detailText = `median ${fmtPct(card.median)}; n=${card.sampleSize}`;
@@ -331,7 +702,11 @@ function renderCards() {
 
     node.appendChild(el("div", { class: valueClass }, valueText));
     node.appendChild(el("div", { class: "stat-detail" }, detailText));
-    grid.appendChild(node);
+    if (card.kind === "count" || card.kind === "drawdown") {
+      featureGrid.appendChild(node);
+    } else {
+      grid.appendChild(node);
+    }
   });
 }
 
@@ -377,7 +752,7 @@ function renderTriggerChart() {
     const circle = svg("circle", {
       cx: x,
       cy: assetY(signal.asset),
-      r: 7,
+      r: 5.6,
       fill: "#ff1d18",
       stroke: "#9d0000",
       "stroke-width": 1.4,
@@ -394,7 +769,7 @@ function renderTriggerChart() {
   const legend = svg("g", { class: "legend", transform: `translate(${plot.left + 12} ${plot.top + 18})` });
   legend.appendChild(svg("line", { x1: 0, x2: 28, y1: 0, y2: 0, stroke: "#151515", "stroke-width": 2 }));
   addText(legend, data.assetName, { x: 40, y: 5 });
-  legend.appendChild(svg("circle", { cx: 15, cy: 30, r: 7, fill: "#ff1d18", stroke: "#9d0000", "stroke-width": 1.4 }));
+  legend.appendChild(svg("circle", { cx: 15, cy: 30, r: 5.6, fill: "#ff1d18", stroke: "#9d0000", "stroke-width": 1.4 }));
   addText(legend, "Signal", { x: 40, y: 35 });
   root.appendChild(legend);
 
@@ -503,8 +878,28 @@ function renderHitRates() {
   });
 }
 
+function setupSignalHighlightSelect() {
+  const select = document.getElementById("signal-highlight-select");
+  if (!select) return;
+  const currentValue = select.value;
+  const options = [
+    { value: "", label: "Median signal" },
+    ...data.signals.map((signal) => ({
+      value: signal.date,
+      label: `${signal.date} (${fmtPct(signal.values["12M"])})`,
+    })),
+  ];
+  select.replaceChildren(...options.map((option) => el("option", { value: option.value }, option.label)));
+  if (options.some((option) => option.value === currentValue)) select.value = currentValue;
+  if (select.dataset.signalSelectReady) return;
+  select.dataset.signalSelectReady = "true";
+  select.addEventListener("change", renderSignalPerformance);
+}
+
 function renderSignalPerformance() {
   const container = document.getElementById("signal-performance-chart");
+  const selectedDate = document.getElementById("signal-highlight-select")?.value || "";
+  const selectedSignal = data.signals.find((signal) => signal.date === selectedDate);
   const width = 1160;
   const height = 430;
   const margin = { top: 26, right: 32, bottom: 58, left: 72 };
@@ -531,17 +926,24 @@ function renderSignalPerformance() {
   });
   root.appendChild(svg("line", { class: "axis-line", x1: plot.left, x2: plot.right, y1: yScale(0), y2: yScale(0) }));
 
+  const selectedLayers = [];
   data.signals.forEach((signal, idx) => {
     const color = palette[idx % palette.length];
     const points = signal.performance.map((point) => ({ x: point.day, y: point.return, date: point.date }));
     const path = pathFromPoints(points, xScale, yScale);
-    root.appendChild(svg("path", {
+    const isHighlighted = signal.date === selectedDate;
+    const visiblePath = svg("path", {
       d: path,
       fill: "none",
       stroke: color,
-      "stroke-width": 1.8,
-      opacity: 0.58,
-    }));
+      "stroke-width": isHighlighted ? 4.2 : selectedDate ? 1.25 : 1.8,
+      "stroke-linecap": "round",
+      "pointer-events": "none",
+      opacity: isHighlighted ? 0.98 : selectedDate ? 0.2 : 0.58,
+    });
+    if (isHighlighted) selectedLayers.push(visiblePath);
+    else root.appendChild(visiblePath);
+
     const hoverPath = svg("path", {
       d: path,
       fill: "none",
@@ -567,18 +969,24 @@ function renderSignalPerformance() {
     d: medianPath,
     fill: "none",
     stroke: "#151515",
-    "stroke-width": 4,
+    "stroke-width": selectedDate ? 3.2 : 4,
     "stroke-linecap": "round",
+    opacity: selectedDate ? 0.72 : 1,
   }));
+
+  selectedLayers.forEach((layer) => root.appendChild(layer));
 
   const legend = svg("g", { class: "legend", transform: `translate(${plot.left} ${height - 16})` });
   legend.appendChild(svg("line", { x1: 0, x2: 30, y1: 0, y2: 0, stroke: "#151515", "stroke-width": 4 }));
   addText(legend, "Median signal", { x: 38, y: 4 });
-  data.signals.slice(0, 7).forEach((signal, idx) => {
-    const x = 172 + idx * 118;
-    legend.appendChild(svg("line", { x1: x, x2: x + 22, y1: 0, y2: 0, stroke: palette[idx % palette.length], "stroke-width": 2 }));
-    addText(legend, signal.date, { x: x + 28, y: 4 });
-  });
+  if (selectedSignal) {
+    const selectedIndex = data.signals.indexOf(selectedSignal);
+    const x = 172;
+    legend.appendChild(svg("line", { x1: x, x2: x + 30, y1: 0, y2: 0, stroke: palette[selectedIndex % palette.length], "stroke-width": 4 }));
+    addText(legend, `Highlighted: ${selectedSignal.date}`, { x: x + 38, y: 4 });
+  } else {
+    addText(legend, "Select a trigger above to highlight one path", { x: 172, y: 4 });
+  }
   root.appendChild(legend);
 
   appendAxisLabel(root, "Forward return", 18, (plot.top + plot.bottom) / 2, true);
@@ -627,7 +1035,7 @@ function renderDistribution() {
       const dot = svg("circle", {
         cx: center + jitter,
         cy: yScale(point.value),
-        r: 5.2,
+        r: 4.68,
         fill: "#ff1d18",
         stroke: "#9d0000",
         "stroke-width": 1,
@@ -767,6 +1175,7 @@ function renderSummaryMatrix() {
 
 function shouldPercent(rowLabel, header) {
   if (!header || header === "Signal Date") return false;
+  if (rowLabel.includes("N (signals with forward data)")) return false;
   if (header.includes("%")) return true;
   if (header.includes("MaxDD")) return true;
   if (data.horizons.includes(header)) return !rowLabel.includes("Z-Score");
@@ -780,6 +1189,7 @@ function isContextPercentHeader(header) {
 function formatTableCell(value, rowLabel, header) {
   if (value === null || value === undefined) return "";
   if (typeof value === "number") {
+    if (rowLabel.includes("N (signals with forward data)")) return value.toFixed(0);
     if (shouldPercent(rowLabel, header)) return fmtPctPlain(value);
     if (rowLabel.includes("Z-Score")) return value.toFixed(2);
     return fmtNumber(value, 2);
@@ -844,11 +1254,13 @@ function renderAll() {
   renderTriggerChart();
   renderForwardReturns();
   renderHitRates();
+  setupSignalHighlightSelect();
   renderSignalPerformance();
   renderDistribution();
   renderSummaryMatrix();
   renderTable();
   setupHelpButtons();
+  setupShareButtons();
 }
 
 renderAll();
