@@ -1,15 +1,15 @@
 # Operator Workflow
 
-This file documents the internal workflow for generating and publishing Daily Chartbook study dashboards.
+This file documents the internal workflow for generating, archiving, rebuilding, and publishing Daily Chartbook study dashboards.
 
-## Inputs
+## Private Inputs
 
-The raw Excel workbooks are local inputs and are intentionally ignored by Git:
+The raw Excel workbooks are local/private inputs and are intentionally ignored by Git:
 
 - `backtest-data.xlsx`
 - `backtest-results.xlsx`
 
-Do not commit raw workbook inputs to the public repository.
+Local archived inputs live under `Archives/`, which is also ignored by Git. Do not commit raw workbook inputs or archived inputs to the public repository.
 
 ## Metadata
 
@@ -29,7 +29,7 @@ GitHub Pages publishes `docs/`, and that folder powers `studies.dailychartbook.c
 
 Each exported study gets its own folder inside `docs/`, and `docs/index.html` is the public landing page.
 
-## Recurring Workflow
+## A. Publishing One New Study
 
 1. Replace the local workbook inputs:
    - `backtest-data.xlsx`
@@ -47,11 +47,49 @@ python3 scripts/build_dashboard_data.py
 python3 scripts/export_study.py
 ```
 
-5. Commit and publish:
+5. Preview locally.
+6. Commit and publish:
 
 ```bash
 git add -A
 git commit -m "Add new backtest study"
+git push origin main
+```
+
+## B. Archiving The Current Study
+
+After confirming the study is correct, run:
+
+```bash
+python3 scripts/archive_inputs.py
+```
+
+This saves the Excel inputs and metadata locally under:
+
+```text
+Archives/<study-slug>/
+  backtest-data.xlsx
+  backtest-results.xlsx
+  study-metadata.json
+```
+
+`Archives/` is local/private and ignored by Git.
+
+## C. Rebuilding All Published Studies
+
+Use this after a dashboard design/code change when you want every archived study to be regenerated with the latest `app.js`, `styles.css`, `index.html`, and export logic.
+
+```bash
+python3 scripts/rebuild_all_studies.py
+```
+
+The rebuild script clears old study folders from `docs/`, regenerates studies from `Archives/`, rebuilds `docs/index.html`, and preserves `docs/CNAME` as `studies.dailychartbook.com`.
+
+After rebuilding, preview `docs/`, then commit and publish:
+
+```bash
+git add -A
+git commit -m "Rebuild backtest studies"
 git push origin main
 ```
 
@@ -73,6 +111,7 @@ Then open:
 
 ```text
 http://127.0.0.1:8765/index.html
+http://127.0.0.1:8765/docs/index.html
 ```
 
 If you used a different port, replace `8765` in the URL with that port.

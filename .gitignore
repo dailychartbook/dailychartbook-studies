@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 dist/
+Archives/
 
 backtest-data.xlsx
 backtest-results.xlsx
