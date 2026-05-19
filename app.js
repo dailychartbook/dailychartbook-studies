@@ -435,7 +435,8 @@ function drawExportTable(ctx, table, x, y, metrics) {
       const text = cell.textContent.replace(/\s+/g, " ").trim();
       const positive = cell.classList.contains("positive-fill");
       const negative = cell.classList.contains("negative-fill");
-      const bold = cell.classList.contains("benchmark-win") || cell.parentElement?.classList.contains("stat-row") || cell.parentElement?.classList.contains("summary-signal-row") || (isFirstColumn && !cell.parentElement?.classList.contains("signal-row"));
+      const isSignalDateCell = isFirstColumn && cell.parentElement?.classList.contains("signal-row");
+      const weight = isHeader || cell.classList.contains("benchmark-win") || (isFirstColumn && !isSignalDateCell) ? 700 : 500;
 
       ctx.fillStyle = isHeader ? "#167c62" : positive ? "#c6efce" : negative ? "#ffc7ce" : "#ffffff";
       ctx.fillRect(currentX, currentY, width, rowHeight);
@@ -443,8 +444,8 @@ function drawExportTable(ctx, table, x, y, metrics) {
       ctx.lineWidth = 1;
       ctx.strokeRect(currentX, currentY, width, rowHeight);
       ctx.fillStyle = isHeader ? "#ffffff" : positive ? "#115c3f" : negative ? "#8b1a16" : "#1d211c";
-      ctx.font = `${isHeader || bold ? 700 : 500} ${isHeader ? 12 : 13}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-      drawCellText(ctx, text, currentX, currentY, width, rowHeight, isFirstColumn && !cell.parentElement?.classList.contains("signal-row") ? "left" : "center");
+      ctx.font = `${weight} ${isHeader ? 12 : 13}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      drawCellText(ctx, text, currentX, currentY, width, rowHeight, isFirstColumn && !isSignalDateCell ? "left" : "center");
       currentX += width;
     });
     currentY += rowHeight;
