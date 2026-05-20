@@ -89,6 +89,9 @@ STAT_LABEL_ALIASES = {
     "median all day return": "Median All-Dataset Return",
     "median all day": "Median All-Dataset Return",
     "median baseline return": "Median All-Dataset Return",
+    "all dataset median return": "Median All-Dataset Return",
+    "all day median return": "Median All-Dataset Return",
+    "baseline median return": "Median All-Dataset Return",
     "average all dataset return": "Average All-Dataset Return",
     "average all dataset": "Average All-Dataset Return",
     "avg all dataset return": "Average All-Dataset Return",
@@ -96,6 +99,12 @@ STAT_LABEL_ALIASES = {
     "average all day return": "Average All-Dataset Return",
     "avg all day return": "Average All-Dataset Return",
     "average baseline return": "Average All-Dataset Return",
+    "all dataset average return": "Average All-Dataset Return",
+    "all dataset avg return": "Average All-Dataset Return",
+    "all day average return": "Average All-Dataset Return",
+    "all day avg return": "Average All-Dataset Return",
+    "baseline average return": "Average All-Dataset Return",
+    "baseline avg return": "Average All-Dataset Return",
     "hit rate all dataset": "All-Dataset Hit Rate",
     "all dataset hit rate": "All-Dataset Hit Rate",
     "hit rate all day": "All-Dataset Hit Rate",
@@ -155,7 +164,8 @@ def clean_summary_line(value: Any) -> str:
 def get_summary_section(sections: dict[str, list[str]], name: str) -> list[str]:
     target = normalize_key(name)
     for section_name, lines in sections.items():
-        if normalize_key(section_name) == target:
+        key = normalize_key(section_name)
+        if key == target or key.startswith(target) or target.startswith(key):
             return lines
     return []
 
@@ -243,9 +253,14 @@ def average(values: list[float]) -> float | None:
     return sum(clean) / len(clean) if clean else None
 
 
-def choose_source_columns(headers: list[str], sheet_name: str) -> tuple[int, int | None, str, str]:
+def choose_source_columns(headers: list[str], sheet_name: str, preferred_asset_name: str | None = None) -> tuple[int, int | None, str, str]:
     keys = [normalize_key(header) for header in headers]
-    asset_idx = next((idx for idx, key in enumerate(keys) if key in {"close", "adj close", "adjusted close"}), None)
+    preferred_asset_key = normalize_key(preferred_asset_name)
+    asset_idx = None
+    if preferred_asset_key:
+        asset_idx = next((idx for idx, key in enumerate(keys) if key == preferred_asset_key), None)
+    if asset_idx is None:
+        asset_idx = next((idx for idx, key in enumerate(keys) if key in {"close", "adj close", "adjusted close"}), None)
     if asset_idx is None:
         asset_idx = 1
 
@@ -255,26 +270,19 @@ def choose_source_columns(headers: list[str], sheet_name: str) -> tuple[int, int
     if not asset_name:
         asset_name = sheet_name or "Asset"
 
-    indicator_idx = next(
-        (
-            idx
-            for idx, key in enumerate(keys[1:], start=1)
-            if idx != asset_idx and key and key not in GENERIC_PRICE_HEADERS
-        ),
-        None,
-    )
+    indicator_idx = next((idx for idx in range(1, len(keys)) if idx != asset_idx and keys[idx]), None)
     indicator_name = headers[indicator_idx].strip() if indicator_idx is not None else ""
     return asset_idx, indicator_idx, asset_name, indicator_name
 
 
-def read_source_data() -> dict[str, Any]:
+def read_source_data(preferred_asset_name: str | None = None) -> dict[str, Any]:
     workbook = openpyxl.load_workbook(DATA_XLSX, data_only=True, read_only=True)
     sheet = workbook[workbook.sheetnames[0]]
     headers = [str(cell.value).strip() if cell.value is not None else "" for cell in sheet[1]]
     if len(headers) < 3:
         raise ValueError("backtest-data.xlsx needs at least Date, asset, and trigger columns.")
 
-    asset_idx, indicator_idx, asset_name, indicator_name = choose_source_columns(headers, sheet.title)
+    asset_idx, indicator_idx, asset_name, indicator_name = choose_source_columns(headers, sheet.title, preferred_asset_name)
     series: list[dict[str, Any]] = []
     for row in sheet.iter_rows(min_row=2, values_only=True):
         row_date = parse_date(row[0])
@@ -324,7 +332,7 @@ def read_summary_text(workbook: openpyxl.Workbook) -> tuple[str, list[str], dict
     title = text[0] if text else "Backtest Visualizer"
     sections: dict[str, list[str]] = {}
     current_section: str | None = None
-    for line in text[2:]:
+    for line in text[1:]:
         if re.match(r"^\s*[\u2022*\\-]\s+", line):
             if current_section:
                 cleaned = clean_summary_line(line)
@@ -337,9 +345,33 @@ def read_summary_text(workbook: openpyxl.Workbook) -> tuple[str, list[str], dict
     return title, text, sections
 
 
+def extract_profile_asset_name(workbook: openpyxl.Workbook) -> str | None:
+    patterns = [
+        re.compile(r"[—–-]\s*([A-Za-z0-9./^& ]+?)\s+Forward\s+Returns?\b", re.IGNORECASE),
+        re.compile(r"\b([A-Za-z0-9./^& ]+?)\s+Forward\s+Returns?\b", re.IGNORECASE),
+    ]
+    for sheet in workbook.worksheets:
+        for row in sheet.iter_rows(min_row=1, max_row=min(sheet.max_row, 8), values_only=True):
+            for value in row:
+                if value is None:
+                    continue
+                text = str(value).strip()
+                if not text:
+                    continue
+                for pattern in patterns:
+                    match = pattern.search(text)
+                    if not match:
+                        continue
+                    candidate = re.sub(r"\s+", " ", match.group(1)).strip(" :-—–")
+                    if candidate:
+                        return candidate
+    return None
+
+
 def read_results() -> dict[str, Any]:
     workbook = openpyxl.load_workbook(RESULTS_XLSX, data_only=True, read_only=False)
     title, summary_text, summary_sections = read_summary_text(workbook)
+    profile_asset_name = extract_profile_asset_name(workbook)
     sheet, header_row, header_start_col = find_results_table(workbook)
 
     header_cols = [
@@ -394,6 +426,7 @@ def read_results() -> dict[str, Any]:
 
     return {
         "title": title,
+        "profileAssetName": profile_asset_name,
         "summaryText": summary_text,
         "summarySections": summary_sections,
         "headers": headers,
@@ -643,10 +676,12 @@ def generate_summary_description(results: dict[str, Any]) -> str | None:
 
 
 def generate_criteria_description(results: dict[str, Any]) -> str | None:
-    methodology = get_summary_section(results.get("summarySections") or {}, "Methodology")
-    if not methodology:
-        return None
-    return " ".join(methodology)
+    sections = results.get("summarySections") or {}
+    for section_name in ("Trigger criteria", "Trigger criteria plain English", "Methodology"):
+        lines = get_summary_section(sections, section_name)
+        if lines:
+            return " ".join(lines)
+    return None
 
 
 def format_percent(value: float | None) -> str:
@@ -657,8 +692,8 @@ def format_percent(value: float | None) -> str:
 
 def build_payload() -> dict[str, Any]:
     metadata = read_study_metadata()
-    source = read_source_data()
     results = read_results()
+    source = read_source_data(results.get("profileAssetName"))
     signals = enrich_signals(source, results)
     comparison = build_comparison(results, signals)
     distribution = build_distribution(signals, results["horizons"])
