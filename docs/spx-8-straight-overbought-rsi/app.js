@@ -699,6 +699,7 @@ function renderCards() {
     } else if (card.kind === "drawdown") {
       valueText = fmtPct(card.value);
       detailText = `n=${card.sampleSize}; all-day avg. ${fmtPct(card.baseline)}`;
+      if (typeof card.baseline === "number" && card.value > card.baseline) valueClass += " stat-value-benchmark";
     } else {
       valueText = fmtPct(card.value);
       detailText = `median ${fmtPct(card.median)}; n=${card.sampleSize}`;

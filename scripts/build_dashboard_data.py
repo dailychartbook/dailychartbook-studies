@@ -324,20 +324,43 @@ def read_summary_text(workbook: openpyxl.Workbook) -> tuple[str, list[str], dict
     if "Summary" not in workbook.sheetnames:
         return "Backtest Visualizer", [], {}
     sheet = workbook["Summary"]
-    text = []
+    summary_rows: list[list[str]] = []
+    text: list[str] = []
     for row in sheet.iter_rows(values_only=True):
-        value = next((cell for cell in row if cell is not None and str(cell).strip()), None) if row else None
-        if value is not None and str(value).strip():
-            text.append(str(value).strip())
+        cells = [str(cell).strip() for cell in row if cell is not None and str(cell).strip()]
+        if cells:
+            summary_rows.append(cells)
+            text.extend(cells)
     title = text[0] if text else "Backtest Visualizer"
     sections: dict[str, list[str]] = {}
     current_section: str | None = None
-    for line in text[1:]:
+    for cells in summary_rows[1:]:
+        line = cells[0]
         if re.match(r"^\s*[\u2022*\\-]\s+", line):
             if current_section:
                 cleaned = clean_summary_line(line)
                 if cleaned:
                     sections[current_section].append(cleaned)
+            continue
+        if len(cells) >= 2:
+            current_section = line.strip().rstrip(":")
+            if current_section:
+                section = sections.setdefault(current_section, [])
+                section.extend(cleaned for value in cells[1:] if (cleaned := clean_summary_line(value)))
+            continue
+        label_match = re.match(r"^([^:]{1,60}):\s*(.+)$", line)
+        if label_match:
+            current_section = label_match.group(1).strip()
+            cleaned = clean_summary_line(label_match.group(2))
+            if current_section:
+                section = sections.setdefault(current_section, [])
+                if cleaned:
+                    section.append(cleaned)
+            continue
+        if current_section and (len(line) > 80 or re.search(r"[.!?]\s*$", line)):
+            cleaned = clean_summary_line(line)
+            if cleaned:
+                sections.setdefault(current_section, []).append(cleaned)
             continue
         current_section = line.strip()
         if current_section:
