@@ -607,6 +607,7 @@ def build_cards(signals: list[dict[str, Any]], results: dict[str, Any]) -> list[
             "kind": "drawdown",
             "label": "Avg. max drawdown",
             "value": average(clean_dd),
+            "baseline": stat_value(stats, "Average All-Dataset Return", "12M MaxDD"),
             "median": median(clean_dd),
             "sampleSize": len(clean_dd),
         }

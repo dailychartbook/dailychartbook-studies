@@ -64,6 +64,15 @@ def compact_description(payload: dict) -> str:
     return description[:217].rstrip() + "..."
 
 
+def latest_signal_date(payload: dict) -> str | None:
+    dates = [
+        str(signal.get("date")).strip()
+        for signal in payload.get("signals", [])
+        if isinstance(signal, dict) and signal.get("date")
+    ]
+    return max(dates) if dates else None
+
+
 def read_study_card(study: Path) -> dict:
     data_file = study / "dashboard-data.js"
     payload: dict = {}
@@ -74,10 +83,13 @@ def read_study_card(study: Path) -> dict:
             payload = json.loads(text[len(prefix) :].rstrip(";\n"))
 
     title = str(payload.get("title") or study.name).strip()
+    latest_signal = latest_signal_date(payload)
     date_range = payload.get("dateRange") or {}
     start = format_display_date(date_range.get("start"))
     end = format_display_date(date_range.get("end"))
-    if start and end:
+    if latest_signal:
+        date_label = f"Most recent signal: {format_display_date(latest_signal)}"
+    elif start and end:
         date_label = f"{start} - {end}"
     else:
         date_label = end or start or ""
@@ -87,6 +99,7 @@ def read_study_card(study: Path) -> dict:
         "title": title,
         "description": compact_description(payload),
         "date": date_label,
+        "sortDate": latest_signal or date_range.get("end") or date_range.get("start") or "",
     }
 
 
@@ -116,8 +129,10 @@ def copy_watermark(destination: Path) -> None:
 
 def build_landing_page(studies: list[Path]) -> str:
     cards = []
-    for study in sorted(studies):
-        card = read_study_card(study)
+    study_cards = [read_study_card(study) for study in studies]
+    study_cards.sort(key=lambda card: card["title"].lower())
+    study_cards.sort(key=lambda card: card["sortDate"] or "0000-00-00", reverse=True)
+    for card in study_cards:
         date = f'<p class="study-date">{escape(card["date"])}</p>' if card["date"] else ""
         cards.append(
             f"""<article class="study-card">
