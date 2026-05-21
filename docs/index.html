@@ -143,10 +143,19 @@
       }
 
       .study-date {
-        margin: 0 0 14px;
+        margin: 0;
         color: var(--accent);
         font-size: 0.76rem;
         font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .study-published {
+        margin: 5px 0 14px;
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-weight: 700;
         letter-spacing: 0;
         text-transform: uppercase;
       }
@@ -173,6 +182,19 @@
         line-height: 1.55;
       }
 
+      .study-key-result {
+        display: inline-flex;
+        margin: 16px 0 0;
+        padding: 7px 9px;
+        border: 1px solid rgba(38, 152, 77, 0.22);
+        border-radius: 999px;
+        background: rgba(38, 152, 77, 0.08);
+        color: var(--ink);
+        font-size: 0.78rem;
+        font-weight: 780;
+        line-height: 1.2;
+      }
+
       .study-link {
         margin: 26px 24px 24px;
         color: var(--accent);
@@ -195,6 +217,20 @@
         margin-top: 40px;
         padding-top: 22px;
         border-top: 1px solid var(--line);
+        text-align: center;
+      }
+
+      .footer-cta {
+        display: inline-flex;
+        margin-bottom: 18px;
+        color: var(--accent);
+        font-size: 0.95rem;
+        font-weight: 830;
+        text-decoration: none;
+      }
+
+      .footer-cta:hover {
+        text-decoration: underline;
       }
 
       .disclaimer {
@@ -263,38 +299,44 @@
       <main>
         <section class="hero">
           <h1>Backtests: Visualized</h1>
-          <p class="subtitle">Interactive backtest dashboards and market studies.</p>
+          <p class="subtitle">Interactive market study dashboards built to show you the numbers, not tell a story</p>
         </section>
         <section class="studies-grid" aria-label="Backtest studies">
           <article class="study-card">
           <a class="study-thumbnail" href="./rspd-rsps-down-15-spx-down-5/" aria-label="Open RSPD/RSPS Drawdown &gt; 15% While S&amp;P 500 &lt; 5%">
-            <img src="./rspd-rsps-down-15-spx-down-5/trigger-map-thumbnail.svg" alt="Trigger map thumbnail for RSPD/RSPS Drawdown &gt; 15% While S&amp;P 500 &lt; 5%">
+            <img src="./rspd-rsps-down-15-spx-down-5/trigger-map-thumbnail.svg" alt="Signal map thumbnail for RSPD/RSPS Drawdown &gt; 15% While S&amp;P 500 &lt; 5%">
           </a>
           <div class="study-card-body">
             <p class="study-date">Most recent signal: May 18, 2026</p>
+            
             <h2><a class="study-title-link" href="./rspd-rsps-down-15-spx-down-5/">RSPD/RSPS Drawdown &gt; 15% While S&amp;P 500 &lt; 5%</a></h2>
+            <p class="study-key-result">12M avg +7.7% | 12M hit rate 75% | n=13</p>
             <p class="study-description">Forward return profile when SPX is near highs while RSPD/RSPS is in a 15% drawdown.</p>
           </div>
           <a class="study-link" href="./rspd-rsps-down-15-spx-down-5/">Open study &rarr;</a>
         </article>
         <article class="study-card">
           <a class="study-thumbnail" href="./spx-8-straight-overbought-rsi/" aria-label="Open S&amp;P 500 Overbought Streak">
-            <img src="./spx-8-straight-overbought-rsi/trigger-map-thumbnail.svg" alt="Trigger map thumbnail for S&amp;P 500 Overbought Streak">
+            <img src="./spx-8-straight-overbought-rsi/trigger-map-thumbnail.svg" alt="Signal map thumbnail for S&amp;P 500 Overbought Streak">
           </a>
           <div class="study-card-body">
             <p class="study-date">Most recent signal: May 15, 2026</p>
+            
             <h2><a class="study-title-link" href="./spx-8-straight-overbought-rsi/">S&amp;P 500 Overbought Streak</a></h2>
+            <p class="study-key-result">12M avg +10.4% | 12M hit rate 74% | n=44</p>
             <p class="study-description">Forward return profile when SPX is overbought for an extended period.</p>
           </div>
           <a class="study-link" href="./spx-8-straight-overbought-rsi/">Open study &rarr;</a>
         </article>
         <article class="study-card">
           <a class="study-thumbnail" href="./ndx-14pct-above-50dma/" aria-label="Open NDX Stretched Above Its 50-Day Moving Average">
-            <img src="./ndx-14pct-above-50dma/trigger-map-thumbnail.svg" alt="Trigger map thumbnail for NDX Stretched Above Its 50-Day Moving Average">
+            <img src="./ndx-14pct-above-50dma/trigger-map-thumbnail.svg" alt="Signal map thumbnail for NDX Stretched Above Its 50-Day Moving Average">
           </a>
           <div class="study-card-body">
             <p class="study-date">Most recent signal: May 8, 2026</p>
+            
             <h2><a class="study-title-link" href="./ndx-14pct-above-50dma/">NDX Stretched Above Its 50-Day Moving Average</a></h2>
+            <p class="study-key-result">12M avg +16.6% | 12M hit rate 73% | n=16</p>
             <p class="study-description">Forward return profile when NDX trades 14% above its 50-day moving average.</p>
           </div>
           <a class="study-link" href="./ndx-14pct-above-50dma/">Open study &rarr;</a>
@@ -302,6 +344,7 @@
         </section>
       </main>
       <footer class="site-footer">
+        <a class="footer-cta" href="https://www.dailychartbook.com">Get charts like these in your inbox &rarr; Subscribe to Daily Chartbook</a>
         <p class="disclaimer"><strong>Disclaimer:</strong> Daily Chartbook Studies are for informational and educational purposes only and are not investment advice or a recommendation to buy or sell any security, strategy, or financial instrument. Past performance is not indicative of future results. Backtested results are hypothetical, assumption-dependent, and may not reflect trading costs, taxes, slippage, liquidity, or execution constraints. Data and calculations may contain errors or omissions. Readers should conduct their own research and consult a qualified adviser before making investment decisions.</p>
       </footer>
     </div>

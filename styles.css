@@ -313,6 +313,41 @@ main {
   color: #8b1a16;
 }
 
+.segmented-control {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-soft);
+}
+
+.segmented-button {
+  min-height: 24px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 780;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.segmented-button:hover,
+.segmented-button:focus-visible {
+  color: var(--green);
+  outline: none;
+}
+
+.segmented-button.is-active {
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(22, 124, 98, 0.18);
+}
+
 .signal-select-label {
   color: var(--muted);
   font-size: 0.72rem;

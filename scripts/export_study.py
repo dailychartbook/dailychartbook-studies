@@ -56,6 +56,13 @@ def format_display_date(value: str | None) -> str | None:
     return parsed.strftime("%b %-d, %Y")
 
 
+def format_percent(value: float | None, digits: int = 1, signed: bool = True) -> str | None:
+    if value is None:
+        return None
+    sign = "+" if signed and value > 0 else ""
+    return f"{sign}{value * 100:.{digits}f}%"
+
+
 def compact_description(payload: dict) -> str:
     description = str(payload.get("description") or "").strip()
     if not description:
@@ -80,6 +87,26 @@ def latest_signal_date(payload: dict) -> str | None:
         if isinstance(signal, dict) and signal.get("date")
     ]
     return max(dates) if dates else None
+
+
+def study_key_result(payload: dict) -> str:
+    comparison_12m = next(
+        (point for point in payload.get("comparison", []) if isinstance(point, dict) and point.get("horizon") == "12M"),
+        None,
+    )
+    signal_average = format_percent(safe_float(comparison_12m.get("signalAverage")) if comparison_12m else None)
+    hit_rate = format_percent(safe_float(comparison_12m.get("signalHitRate")) if comparison_12m else None, digits=0, signed=False)
+    count_card = next((card for card in payload.get("cards", []) if isinstance(card, dict) and card.get("kind") == "count"), None)
+    signal_count = count_card.get("value") if count_card else len(payload.get("signals", []) or [])
+
+    parts = []
+    if signal_average is not None:
+        parts.append(f"12M avg {signal_average}")
+    if hit_rate is not None:
+        parts.append(f"12M hit rate {hit_rate}")
+    if signal_count:
+        parts.append(f"n={signal_count}")
+    return " | ".join(parts)
 
 
 def safe_float(value) -> float | None:
@@ -170,7 +197,7 @@ def write_trigger_thumbnail(payload: dict, destination: Path) -> None:
 
     asset_name = escape(str(payload.get("assetName") or "Asset"))
     svg_body = "\n    ".join(signal_dots)
-    thumbnail = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="{asset_name} trigger map thumbnail">
+    thumbnail = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="{asset_name} signal map thumbnail">
   <rect width="{width}" height="{height}" fill="#fff"/>
   <rect x="{plot["left"]}" y="{plot["top"]}" width="{plot["right"] - plot["left"]}" height="{plot["bottom"] - plot["top"]}" rx="8" fill="#fbfcf8" stroke="#d9ded5"/>
   <path d="{"".join(path_parts)}" fill="none" stroke="#151515" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -200,15 +227,43 @@ def read_study_card(study: Path) -> dict:
         date_label = f"{start} - {end}"
     else:
         date_label = end or start or ""
+    published = payload.get("publishedDate") or payload.get("published")
+    published_label = f"Published: {format_display_date(published)}" if published else ""
 
     return {
         "href": f"./{study.name}/",
         "title": title,
         "description": compact_description(payload),
         "date": date_label,
+        "publishedDate": published_label,
+        "keyResult": study_key_result(payload),
         "sortDate": latest_signal or date_range.get("end") or date_range.get("start") or "",
         "thumbnail": f"./{study.name}/{THUMBNAIL_FILE}" if (study / THUMBNAIL_FILE).exists() else "",
     }
+
+
+def customized_study_index(payload: dict) -> str:
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    title = str(payload.get("title") or "Backtest Visualizer").strip()
+    description = compact_description(payload)
+    html = re.sub(r"<title>.*?</title>", f"<title>{escape(title)} | Daily Chartbook Studies</title>", html, count=1, flags=re.DOTALL)
+    meta_tag = f'<meta name="description" content="{escape(description, quote=True)}">'
+    if '<meta name="description"' in html:
+        html = re.sub(r'\s*<meta name="description" content=".*?">', f"\n    {meta_tag}", html, count=1, flags=re.DOTALL)
+    else:
+        html = html.replace(
+            '<meta name="viewport" content="width=device-width, initial-scale=1">',
+            f'<meta name="viewport" content="width=device-width, initial-scale=1">\n    {meta_tag}',
+            1,
+        )
+    html = re.sub(
+        r'(<h1 id="study-title">).*?(</h1>)',
+        lambda match: f"{match.group(1)}{escape(title)}{match.group(2)}",
+        html,
+        count=1,
+        flags=re.DOTALL,
+    )
+    return html
 
 
 def copy_logo(destination: Path) -> None:
@@ -242,9 +297,11 @@ def build_landing_page(studies: list[Path]) -> str:
     study_cards.sort(key=lambda card: card["sortDate"] or "0000-00-00", reverse=True)
     for card in study_cards:
         date = f'<p class="study-date">{escape(card["date"])}</p>' if card["date"] else ""
+        published_date = f'<p class="study-published">{escape(card["publishedDate"])}</p>' if card["publishedDate"] else ""
+        key_result = f'<p class="study-key-result">{escape(card["keyResult"])}</p>' if card["keyResult"] else ""
         thumbnail = (
-            f"""<a class="study-thumbnail" href="{escape(card["href"])}" aria-label="Open {escape(card["title"])}">
-            <img src="{escape(card["thumbnail"])}" alt="Trigger map thumbnail for {escape(card["title"])}">
+            f"""<a class="study-thumbnail" href="{escape(card["href"])}" aria-label="Open {escape(card["title"], quote=True)}">
+            <img src="{escape(card["thumbnail"])}" alt="Signal map thumbnail for {escape(card["title"], quote=True)}">
           </a>"""
             if card["thumbnail"]
             else ""
@@ -254,7 +311,9 @@ def build_landing_page(studies: list[Path]) -> str:
           {thumbnail}
           <div class="study-card-body">
             {date}
+            {published_date}
             <h2><a class="study-title-link" href="{escape(card["href"])}">{escape(card["title"])}</a></h2>
+            {key_result}
             <p class="study-description">{escape(card["description"])}</p>
           </div>
           <a class="study-link" href="{escape(card["href"])}">Open study &rarr;</a>
@@ -407,10 +466,19 @@ def build_landing_page(studies: list[Path]) -> str:
       }}
 
       .study-date {{
-        margin: 0 0 14px;
+        margin: 0;
         color: var(--accent);
         font-size: 0.76rem;
         font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }}
+
+      .study-published {{
+        margin: 5px 0 14px;
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-weight: 700;
         letter-spacing: 0;
         text-transform: uppercase;
       }}
@@ -437,6 +505,19 @@ def build_landing_page(studies: list[Path]) -> str:
         line-height: 1.55;
       }}
 
+      .study-key-result {{
+        display: inline-flex;
+        margin: 16px 0 0;
+        padding: 7px 9px;
+        border: 1px solid rgba(38, 152, 77, 0.22);
+        border-radius: 999px;
+        background: rgba(38, 152, 77, 0.08);
+        color: var(--ink);
+        font-size: 0.78rem;
+        font-weight: 780;
+        line-height: 1.2;
+      }}
+
       .study-link {{
         margin: 26px 24px 24px;
         color: var(--accent);
@@ -459,6 +540,20 @@ def build_landing_page(studies: list[Path]) -> str:
         margin-top: 40px;
         padding-top: 22px;
         border-top: 1px solid var(--line);
+        text-align: center;
+      }}
+
+      .footer-cta {{
+        display: inline-flex;
+        margin-bottom: 18px;
+        color: var(--accent);
+        font-size: 0.95rem;
+        font-weight: 830;
+        text-decoration: none;
+      }}
+
+      .footer-cta:hover {{
+        text-decoration: underline;
       }}
 
       .disclaimer {{
@@ -527,13 +622,14 @@ def build_landing_page(studies: list[Path]) -> str:
       <main>
         <section class="hero">
           <h1>Backtests: Visualized</h1>
-          <p class="subtitle">Interactive backtest dashboards and market studies.</p>
+          <p class="subtitle">Interactive market study dashboards built to show you the numbers, not tell a story</p>
         </section>
         <section class="studies-grid" aria-label="Backtest studies">
           {items}
         </section>
       </main>
       <footer class="site-footer">
+        <a class="footer-cta" href="https://www.dailychartbook.com">Get charts like these in your inbox &rarr; Subscribe to Daily Chartbook</a>
         <p class="disclaimer"><strong>Disclaimer:</strong> {escape(DISCLAIMER)}</p>
       </footer>
     </div>
@@ -560,6 +656,7 @@ def main() -> None:
 
     for file_name in WEB_FILES:
         shutil.copy2(ROOT / file_name, study_dir / file_name)
+    (study_dir / "index.html").write_text(customized_study_index(payload), encoding="utf-8")
     copy_favicon(study_dir)
     copy_logo(study_dir)
     copy_watermark(study_dir)

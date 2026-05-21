@@ -845,7 +845,7 @@ function renderComboChart(containerId, options) {
       fill: barValue >= 0 ? "#167c62" : "#d84235",
     });
     bar.addEventListener("mousemove", (event) => showTooltip(
-      `<strong>${point.horizon}</strong>Signal: ${options.formatter(barValue)}<br>All days: ${options.formatter(lineValue)}<br>n=${point.signalCount}`,
+      `<strong>${point.horizon}</strong>${options.signalTooltipLabel || "Signal"}: ${options.formatter(barValue)}<br>${options.baselineTooltipLabel || "All days"}: ${options.formatter(lineValue)}<br>n=${point.signalCount}`,
       event
     ));
     bar.addEventListener("mouseleave", hideTooltip);
@@ -867,7 +867,7 @@ function renderComboChart(containerId, options) {
   linePoints.forEach((point) => {
     const dot = svg("circle", { cx: point.x, cy: yScale(point.y), r: 4.6, fill: "#151515" });
     dot.addEventListener("mousemove", (event) => showTooltip(
-      `<strong>${point.horizon}</strong>All days: ${options.formatter(point.y)}<br>Signal: ${options.formatter(point.signal)}<br>n=${point.signalCount}`,
+      `<strong>${point.horizon}</strong>${options.baselineTooltipLabel || "All days"}: ${options.formatter(point.y)}<br>${options.signalTooltipLabel || "Signal"}: ${options.formatter(point.signal)}<br>n=${point.signalCount}`,
       event
     ));
     dot.addEventListener("mouseleave", hideTooltip);
@@ -885,16 +885,42 @@ function renderComboChart(containerId, options) {
   container.replaceChildren(root);
 }
 
+function currentReturnMetric() {
+  return document.querySelector("[data-return-metric].is-active")?.dataset.returnMetric || "average";
+}
+
+function setupReturnMetricToggle() {
+  const buttons = Array.from(document.querySelectorAll("[data-return-metric]"));
+  if (!buttons.length || buttons[0].dataset.metricToggleReady) return;
+  buttons.forEach((button) => {
+    button.dataset.metricToggleReady = "true";
+    button.addEventListener("click", () => {
+      buttons.forEach((candidate) => {
+        const isActive = candidate === button;
+        candidate.classList.toggle("is-active", isActive);
+        candidate.setAttribute("aria-pressed", String(isActive));
+      });
+      renderForwardReturns();
+    });
+  });
+}
+
 function renderForwardReturns() {
+  const metric = currentReturnMetric();
+  const isMedian = metric === "median";
+  const title = document.getElementById("forward-returns-title");
+  if (title) title.textContent = isMedian ? "Median signal vs baseline" : "Average signal vs baseline";
   renderComboChart("forward-returns-chart", {
-    label: "Average forward returns",
-    barKey: "signalAverage",
-    lineKey: "allAverage",
-    barLabel: "Signal avg.",
-    lineLabel: "All-day avg.",
+    label: isMedian ? "Median forward returns" : "Average forward returns",
+    barKey: isMedian ? "signalMedian" : "signalAverage",
+    lineKey: isMedian ? "allMedian" : "allAverage",
+    barLabel: isMedian ? "Signal median" : "Signal avg.",
+    lineLabel: isMedian ? "All-day median" : "All-day avg.",
+    signalTooltipLabel: isMedian ? "Signal median" : "Signal avg.",
+    baselineTooltipLabel: isMedian ? "All-day median" : "All-day avg.",
     yLabel: "Return",
     formatter: (value) => fmtPct(value),
-    domain: comparisonDomain("signalAverage", "allAverage", true),
+    domain: comparisonDomain(isMedian ? "signalMedian" : "signalAverage", isMedian ? "allMedian" : "allAverage", true),
   });
 }
 
@@ -1307,6 +1333,7 @@ function renderAll() {
   renderParameterDescription();
   renderCards();
   renderTriggerChart();
+  setupReturnMetricToggle();
   renderForwardReturns();
   renderHitRates();
   setupSignalHighlightSelect();
