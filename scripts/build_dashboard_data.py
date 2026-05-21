@@ -253,9 +253,34 @@ def average(values: list[float]) -> float | None:
     return sum(clean) / len(clean) if clean else None
 
 
-def choose_source_columns(headers: list[str], sheet_name: str, preferred_asset_name: str | None = None) -> tuple[int, int | None, str, str]:
+def infer_trigger_name(results: dict[str, Any], criteria_description: str | None = None) -> str | None:
+    parts = [criteria_description or "", results.get("title") or ""]
+    parts.extend(str(item) for item in results.get("summaryText") or [])
+    text = " ".join(part for part in parts if part)
+
+    ratio = re.search(r"\b([A-Z]{2,8}/[A-Z]{2,8})\b", text)
+    if ratio:
+        return ratio.group(1)
+
+    if re.search(r"\bRSI\b", text, re.IGNORECASE):
+        return "RSI"
+
+    dma = re.search(r"\b(\d{1,3})\s*(?:-| )?\s*(?:day\s*)?(?:moving\s+average|dma)\b", text, re.IGNORECASE)
+    if dma:
+        return f"{dma.group(1)}DMA"
+
+    return None
+
+
+def choose_source_columns(
+    headers: list[str],
+    sheet_name: str,
+    preferred_asset_name: str | None = None,
+    preferred_trigger_name: str | None = None,
+) -> tuple[int, int | None, str, str]:
     keys = [normalize_key(header) for header in headers]
     preferred_asset_key = normalize_key(preferred_asset_name)
+    preferred_trigger_key = normalize_key(preferred_trigger_name)
     asset_idx = None
     if preferred_asset_key:
         asset_idx = next((idx for idx, key in enumerate(keys) if key == preferred_asset_key), None)
@@ -270,19 +295,25 @@ def choose_source_columns(headers: list[str], sheet_name: str, preferred_asset_n
     if not asset_name:
         asset_name = sheet_name or "Asset"
 
-    indicator_idx = next((idx for idx in range(1, len(keys)) if idx != asset_idx and keys[idx]), None)
+    indicator_idx = None
+    if preferred_trigger_key:
+        indicator_idx = next((idx for idx, key in enumerate(keys) if idx != asset_idx and key == preferred_trigger_key), None)
+    if indicator_idx is None:
+        indicator_idx = next((idx for idx in range(1, len(keys)) if idx != asset_idx and keys[idx] and keys[idx] not in GENERIC_PRICE_HEADERS), None)
+    if indicator_idx is None:
+        indicator_idx = next((idx for idx in range(1, len(keys)) if idx != asset_idx and keys[idx]), None)
     indicator_name = headers[indicator_idx].strip() if indicator_idx is not None else ""
     return asset_idx, indicator_idx, asset_name, indicator_name
 
 
-def read_source_data(preferred_asset_name: str | None = None) -> dict[str, Any]:
+def read_source_data(preferred_asset_name: str | None = None, preferred_trigger_name: str | None = None) -> dict[str, Any]:
     workbook = openpyxl.load_workbook(DATA_XLSX, data_only=True, read_only=True)
     sheet = workbook[workbook.sheetnames[0]]
     headers = [str(cell.value).strip() if cell.value is not None else "" for cell in sheet[1]]
     if len(headers) < 3:
         raise ValueError("backtest-data.xlsx needs at least Date, asset, and trigger columns.")
 
-    asset_idx, indicator_idx, asset_name, indicator_name = choose_source_columns(headers, sheet.title, preferred_asset_name)
+    asset_idx, indicator_idx, asset_name, indicator_name = choose_source_columns(headers, sheet.title, preferred_asset_name, preferred_trigger_name)
     series: list[dict[str, Any]] = []
     for row in sheet.iter_rows(min_row=2, values_only=True):
         row_date = parse_date(row[0])
@@ -717,14 +748,15 @@ def format_percent(value: float | None) -> str:
 def build_payload() -> dict[str, Any]:
     metadata = read_study_metadata()
     results = read_results()
-    source = read_source_data(results.get("profileAssetName"))
+    criteria_description = generate_criteria_description(results)
+    trigger_name = infer_trigger_name(results, criteria_description)
+    source = read_source_data(results.get("profileAssetName"), trigger_name)
     signals = enrich_signals(source, results)
     comparison = build_comparison(results, signals)
     distribution = build_distribution(signals, results["horizons"])
     cards = build_cards(signals, results)
     ai_description = generate_description(source, signals, results)
     summary_description = generate_summary_description(results)
-    criteria_description = generate_criteria_description(results)
 
     payload = {
         "title": metadata.get("title") or results["title"],
@@ -732,6 +764,7 @@ def build_payload() -> dict[str, Any]:
         "slug": metadata.get("slug") or "",
         "assetName": source["assetName"],
         "indicatorName": source["indicatorName"],
+        "triggerName": trigger_name or source["indicatorName"],
         "dateRange": source["dateRange"],
         "generatedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
         "aiDescription": summary_description or ai_description,

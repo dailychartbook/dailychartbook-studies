@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import shutil
 import unicodedata
@@ -24,6 +25,14 @@ LANDING_LOGO_FILE = "dc-logo-wnb.png"
 LANDING_LOGO_SOURCES = [ROOT / LANDING_LOGO_FILE]
 WATERMARK_FILE = "dc_watermark_w.png"
 WATERMARK_SOURCES = [ROOT / WATERMARK_FILE, ROOT / "DC_Watermark_W.png"]
+THUMBNAIL_FILE = "trigger-map-thumbnail.svg"
+DISCLAIMER = (
+    "Daily Chartbook Studies are for informational and educational purposes only and are not investment advice "
+    "or a recommendation to buy or sell any security, strategy, or financial instrument. Past performance is not "
+    "indicative of future results. Backtested results are hypothetical, assumption-dependent, and may not reflect "
+    "trading costs, taxes, slippage, liquidity, or execution constraints. Data and calculations may contain errors "
+    "or omissions. Readers should conduct their own research and consult a qualified adviser before making investment decisions."
+)
 
 
 def slugify(text: str, fallback: str = "backtest-study") -> str:
@@ -73,6 +82,104 @@ def latest_signal_date(payload: dict) -> str | None:
     return max(dates) if dates else None
 
 
+def safe_float(value) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def date_number(value: str) -> int | None:
+    try:
+        return datetime.fromisoformat(value).toordinal()
+    except (TypeError, ValueError):
+        return None
+
+
+def sampled_series(series: list[dict], max_points: int = 320) -> list[dict]:
+    if len(series) <= max_points:
+        return series
+    step = (len(series) - 1) / (max_points - 1)
+    sampled = []
+    seen_dates = set()
+    for idx in range(max_points):
+        point = series[round(idx * step)]
+        point_date = point.get("date")
+        if point_date in seen_dates:
+            continue
+        seen_dates.add(point_date)
+        sampled.append(point)
+    return sampled
+
+
+def write_trigger_thumbnail(payload: dict, destination: Path) -> None:
+    series = [point for point in payload.get("series", []) if date_number(point.get("date")) and safe_float(point.get("asset"))]
+    if len(series) < 2:
+        return
+
+    signals = [
+        signal
+        for signal in payload.get("signals", [])
+        if date_number(signal.get("date")) and safe_float(signal.get("asset"))
+    ]
+    width = 720
+    height = 270
+    plot = {"left": 28, "right": 692, "top": 24, "bottom": 226}
+    times = [date_number(point["date"]) for point in series]
+    values = [safe_float(point["asset"]) for point in series]
+    positive_values = [value for value in values if value and value > 0]
+    if not positive_values:
+        return
+
+    x_min, x_max = min(times), max(times)
+    y_min = max(min(positive_values) * 0.92, 0.000001)
+    y_max = max(positive_values) * 1.05
+    if y_min == y_max:
+        y_min *= 0.95
+        y_max *= 1.05
+    log_min = math.log(y_min)
+    log_span = math.log(y_max) - log_min or 1
+
+    def x_scale(value: int) -> float:
+        return plot["left"] + ((value - x_min) / (x_max - x_min or 1)) * (plot["right"] - plot["left"])
+
+    def y_scale(value: float) -> float:
+        return plot["bottom"] - ((math.log(max(value, 0.000001)) - log_min) / log_span) * (plot["bottom"] - plot["top"])
+
+    path_parts = []
+    for point in sampled_series(series):
+        point_time = date_number(point["date"])
+        point_value = safe_float(point["asset"])
+        if point_time is None or point_value is None:
+            continue
+        command = "M" if not path_parts else "L"
+        path_parts.append(f"{command}{x_scale(point_time):.2f},{y_scale(point_value):.2f}")
+
+    signal_dots = []
+    for signal in signals:
+        signal_time = date_number(signal["date"])
+        signal_value = safe_float(signal["asset"])
+        if signal_time is None or signal_value is None:
+            continue
+        signal_dots.append(
+            f'<circle cx="{x_scale(signal_time):.2f}" cy="{y_scale(signal_value):.2f}" r="4.2" fill="#ff1d18" stroke="#9d0000" stroke-width="1.2"/>'
+        )
+
+    asset_name = escape(str(payload.get("assetName") or "Asset"))
+    svg_body = "\n    ".join(signal_dots)
+    thumbnail = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="{asset_name} trigger map thumbnail">
+  <rect width="{width}" height="{height}" fill="#fff"/>
+  <rect x="{plot["left"]}" y="{plot["top"]}" width="{plot["right"] - plot["left"]}" height="{plot["bottom"] - plot["top"]}" rx="8" fill="#fbfcf8" stroke="#d9ded5"/>
+  <path d="{"".join(path_parts)}" fill="none" stroke="#151515" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  {svg_body}
+</svg>
+"""
+    (destination / THUMBNAIL_FILE).write_text(thumbnail, encoding="utf-8")
+
+
 def read_study_card(study: Path) -> dict:
     data_file = study / "dashboard-data.js"
     payload: dict = {}
@@ -100,6 +207,7 @@ def read_study_card(study: Path) -> dict:
         "description": compact_description(payload),
         "date": date_label,
         "sortDate": latest_signal or date_range.get("end") or date_range.get("start") or "",
+        "thumbnail": f"./{study.name}/{THUMBNAIL_FILE}" if (study / THUMBNAIL_FILE).exists() else "",
     }
 
 
@@ -134,9 +242,17 @@ def build_landing_page(studies: list[Path]) -> str:
     study_cards.sort(key=lambda card: card["sortDate"] or "0000-00-00", reverse=True)
     for card in study_cards:
         date = f'<p class="study-date">{escape(card["date"])}</p>' if card["date"] else ""
+        thumbnail = (
+            f"""<a class="study-thumbnail" href="{escape(card["href"])}" aria-label="Open {escape(card["title"])}">
+            <img src="{escape(card["thumbnail"])}" alt="Trigger map thumbnail for {escape(card["title"])}">
+          </a>"""
+            if card["thumbnail"]
+            else ""
+        )
         cards.append(
             f"""<article class="study-card">
-          <div>
+          {thumbnail}
+          <div class="study-card-body">
             {date}
             <h2><a class="study-title-link" href="{escape(card["href"])}">{escape(card["title"])}</a></h2>
             <p class="study-description">{escape(card["description"])}</p>
@@ -265,11 +381,29 @@ def build_landing_page(studies: list[Path]) -> str:
         flex-direction: column;
         justify-content: space-between;
         min-height: 250px;
-        padding: 24px;
         border: 1px solid var(--line);
         border-radius: 14px;
         background: #fff;
         box-shadow: 0 18px 42px rgba(23, 23, 23, 0.06);
+        overflow: hidden;
+      }}
+
+      .study-thumbnail {{
+        display: block;
+        border-bottom: 1px solid var(--line);
+        background: var(--soft);
+        text-decoration: none;
+      }}
+
+      .study-thumbnail img {{
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 6;
+        object-fit: cover;
+      }}
+
+      .study-card-body {{
+        padding: 22px 24px 0;
       }}
 
       .study-date {{
@@ -304,7 +438,7 @@ def build_landing_page(studies: list[Path]) -> str:
       }}
 
       .study-link {{
-        margin-top: 26px;
+        margin: 26px 24px 24px;
         color: var(--accent);
         font-weight: 820;
         text-decoration: none;
@@ -319,6 +453,21 @@ def build_landing_page(studies: list[Path]) -> str:
         border: 1px dashed var(--line);
         border-radius: 12px;
         background: var(--soft);
+      }}
+
+      .site-footer {{
+        margin-top: 40px;
+        padding-top: 22px;
+        border-top: 1px solid var(--line);
+      }}
+
+      .disclaimer {{
+        max-width: 980px;
+        margin: 0 auto;
+        color: var(--muted);
+        font-size: 0.72rem;
+        line-height: 1.55;
+        text-align: center;
       }}
 
       @media (max-width: 640px) {{
@@ -356,7 +505,14 @@ def build_landing_page(studies: list[Path]) -> str:
 
         .study-card {{
           min-height: 0;
-          padding: 20px;
+        }}
+
+        .study-card-body {{
+          padding: 20px 20px 0;
+        }}
+
+        .study-link {{
+          margin: 22px 20px 20px;
         }}
       }}
     </style>
@@ -377,6 +533,9 @@ def build_landing_page(studies: list[Path]) -> str:
           {items}
         </section>
       </main>
+      <footer class="site-footer">
+        <p class="disclaimer"><strong>Disclaimer:</strong> {escape(DISCLAIMER)}</p>
+      </footer>
     </div>
   </body>
 </html>
@@ -404,6 +563,7 @@ def main() -> None:
     copy_favicon(study_dir)
     copy_logo(study_dir)
     copy_watermark(study_dir)
+    write_trigger_thumbnail(payload, study_dir)
 
     (study_dir / "README.txt").write_text(
         "This folder is a self-contained static Backtest Visualizer study. "

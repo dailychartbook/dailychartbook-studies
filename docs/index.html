@@ -117,11 +117,29 @@
         flex-direction: column;
         justify-content: space-between;
         min-height: 250px;
-        padding: 24px;
         border: 1px solid var(--line);
         border-radius: 14px;
         background: #fff;
         box-shadow: 0 18px 42px rgba(23, 23, 23, 0.06);
+        overflow: hidden;
+      }
+
+      .study-thumbnail {
+        display: block;
+        border-bottom: 1px solid var(--line);
+        background: var(--soft);
+        text-decoration: none;
+      }
+
+      .study-thumbnail img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 6;
+        object-fit: cover;
+      }
+
+      .study-card-body {
+        padding: 22px 24px 0;
       }
 
       .study-date {
@@ -156,7 +174,7 @@
       }
 
       .study-link {
-        margin-top: 26px;
+        margin: 26px 24px 24px;
         color: var(--accent);
         font-weight: 820;
         text-decoration: none;
@@ -171,6 +189,21 @@
         border: 1px dashed var(--line);
         border-radius: 12px;
         background: var(--soft);
+      }
+
+      .site-footer {
+        margin-top: 40px;
+        padding-top: 22px;
+        border-top: 1px solid var(--line);
+      }
+
+      .disclaimer {
+        max-width: 980px;
+        margin: 0 auto;
+        color: var(--muted);
+        font-size: 0.72rem;
+        line-height: 1.55;
+        text-align: center;
       }
 
       @media (max-width: 640px) {
@@ -208,7 +241,14 @@
 
         .study-card {
           min-height: 0;
-          padding: 20px;
+        }
+
+        .study-card-body {
+          padding: 20px 20px 0;
+        }
+
+        .study-link {
+          margin: 22px 20px 20px;
         }
       }
     </style>
@@ -227,7 +267,10 @@
         </section>
         <section class="studies-grid" aria-label="Backtest studies">
           <article class="study-card">
-          <div>
+          <a class="study-thumbnail" href="./rspd-rsps-down-15-spx-down-5/" aria-label="Open RSPD/RSPS Drawdown &gt; 15% While S&amp;P 500 &lt; 5%">
+            <img src="./rspd-rsps-down-15-spx-down-5/trigger-map-thumbnail.svg" alt="Trigger map thumbnail for RSPD/RSPS Drawdown &gt; 15% While S&amp;P 500 &lt; 5%">
+          </a>
+          <div class="study-card-body">
             <p class="study-date">Most recent signal: May 18, 2026</p>
             <h2><a class="study-title-link" href="./rspd-rsps-down-15-spx-down-5/">RSPD/RSPS Drawdown &gt; 15% While S&amp;P 500 &lt; 5%</a></h2>
             <p class="study-description">Forward return profile when SPX is near highs while RSPD/RSPS is in a 15% drawdown.</p>
@@ -235,7 +278,10 @@
           <a class="study-link" href="./rspd-rsps-down-15-spx-down-5/">Open study &rarr;</a>
         </article>
         <article class="study-card">
-          <div>
+          <a class="study-thumbnail" href="./spx-8-straight-overbought-rsi/" aria-label="Open S&amp;P 500 Overbought Streak">
+            <img src="./spx-8-straight-overbought-rsi/trigger-map-thumbnail.svg" alt="Trigger map thumbnail for S&amp;P 500 Overbought Streak">
+          </a>
+          <div class="study-card-body">
             <p class="study-date">Most recent signal: May 15, 2026</p>
             <h2><a class="study-title-link" href="./spx-8-straight-overbought-rsi/">S&amp;P 500 Overbought Streak</a></h2>
             <p class="study-description">Forward return profile when SPX is overbought for an extended period.</p>
@@ -243,7 +289,10 @@
           <a class="study-link" href="./spx-8-straight-overbought-rsi/">Open study &rarr;</a>
         </article>
         <article class="study-card">
-          <div>
+          <a class="study-thumbnail" href="./ndx-14pct-above-50dma/" aria-label="Open NDX Stretched Above Its 50-Day Moving Average">
+            <img src="./ndx-14pct-above-50dma/trigger-map-thumbnail.svg" alt="Trigger map thumbnail for NDX Stretched Above Its 50-Day Moving Average">
+          </a>
+          <div class="study-card-body">
             <p class="study-date">Most recent signal: May 8, 2026</p>
             <h2><a class="study-title-link" href="./ndx-14pct-above-50dma/">NDX Stretched Above Its 50-Day Moving Average</a></h2>
             <p class="study-description">Forward return profile when NDX trades 14% above its 50-day moving average.</p>
@@ -252,6 +301,9 @@
         </article>
         </section>
       </main>
+      <footer class="site-footer">
+        <p class="disclaimer"><strong>Disclaimer:</strong> Daily Chartbook Studies are for informational and educational purposes only and are not investment advice or a recommendation to buy or sell any security, strategy, or financial instrument. Past performance is not indicative of future results. Backtested results are hypothetical, assumption-dependent, and may not reflect trading costs, taxes, slippage, liquidity, or execution constraints. Data and calculations may contain errors or omissions. Readers should conduct their own research and consult a qualified adviser before making investment decisions.</p>
+      </footer>
     </div>
   </body>
 </html>

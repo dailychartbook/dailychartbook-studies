@@ -63,6 +63,10 @@ function cleanAssetLabel() {
   return String(data.assetName || "Asset").replace(/\s+(close|price)$/i, "").trim();
 }
 
+function cleanTriggerLabel() {
+  return String(data.triggerName || data.indicatorName || "Trigger").trim();
+}
+
 function resolveStudiesHref() {
   const path = window.location.pathname.replace(/\/+$/, "");
   if (path === "" || path === "/index.html") return "docs/index.html";
@@ -213,10 +217,34 @@ function drawHorizontalGrid(root, yScale, ticks, plot, formatter) {
   });
 }
 
+function drawHorizontalAxisTicks(root, yScale, ticks, plot, formatter) {
+  ticks.forEach((tick) => {
+    const y = yScale(tick);
+    addText(root, formatter(tick), {
+      class: "axis",
+      x: plot.left - 8,
+      y: y + 4,
+      "text-anchor": "end",
+    });
+  });
+}
+
 function drawVerticalGrid(root, xScale, ticks, plot) {
   ticks.forEach((tick) => {
     const x = xScale(tick.value);
     root.appendChild(svg("line", { class: "grid-line", x1: x, x2: x, y1: plot.top, y2: plot.bottom }));
+    addText(root, tick.label, {
+      class: "axis",
+      x,
+      y: plot.bottom + 22,
+      "text-anchor": "middle",
+    });
+  });
+}
+
+function drawVerticalAxisTicks(root, xScale, ticks, plot) {
+  ticks.forEach((tick) => {
+    const x = xScale(tick.value);
     addText(root, tick.label, {
       class: "axis",
       x,
@@ -597,7 +625,7 @@ function signalTooltip(signal, extra = "") {
     .join(" | ");
   return `<strong>${fmtDate(signal.date)}</strong>
     ${data.assetName}: ${fmtPrice(signal.asset)}<br>
-    ${data.indicatorName}: ${fmtNumber(signal.indicator, 3)}<br>
+    ${data.indicatorName || cleanTriggerLabel()}: ${fmtNumber(signal.indicator, 3)}<br>
     ${extra}
     ${resultLine ? `<br>${resultLine}` : ""}`;
 }
@@ -664,7 +692,7 @@ function renderHeader() {
   meta.replaceChildren(
     el("span", { class: "meta-pill" }, `Asset: ${cleanAssetLabel()}`),
     el("span", { class: "meta-pill" }, `n=${data.signals.length}`),
-    el("span", { class: "meta-pill" }, `Trigger: ${data.indicatorName}`),
+    el("span", { class: "meta-pill" }, `Trigger: ${cleanTriggerLabel()}`),
     el("span", { class: "meta-pill" }, `${fmtDate(data.dateRange.start)} - ${fmtDate(data.dateRange.end)}`),
     el("span", { class: "meta-pill" }, `${data.dateRange.tradingDays.toLocaleString()} trading days`)
   );
@@ -731,8 +759,8 @@ function renderTriggerChart() {
   const assetY = logScale(assetDomain, [plot.bottom, plot.top]);
   const ticks = yearTicks(data.series);
 
-  drawVerticalGrid(root, xScale, ticks, plot);
-  drawHorizontalGrid(root, assetY, niceTicks(assetDomain, 4), plot, (value) => value >= 100 ? value.toFixed(0) : value.toFixed(1));
+  drawVerticalAxisTicks(root, xScale, ticks, plot);
+  drawHorizontalAxisTicks(root, assetY, niceTicks(assetDomain, 4), plot, (value) => value >= 100 ? value.toFixed(0) : value.toFixed(1));
 
   root.appendChild(svg("rect", {
     x: plot.left,
@@ -932,6 +960,7 @@ function renderSignalPerformance() {
   root.appendChild(svg("line", { class: "axis-line", x1: plot.left, x2: plot.right, y1: yScale(0), y2: yScale(0) }));
 
   const selectedLayers = [];
+  const hoverLayers = [];
   data.signals.forEach((signal, idx) => {
     const color = palette[idx % palette.length];
     const points = signal.performance.map((point) => ({ x: point.day, y: point.return, date: point.date }));
@@ -966,10 +995,11 @@ function renderSignalPerformance() {
       showTooltip(signalTooltip(signal, `<br>Day ${nearest.x}: ${fmtPct(nearest.y)}<br>Path date: ${fmtDate(nearest.date)}`), event);
     });
     hoverPath.addEventListener("mouseleave", hideTooltip);
-    root.appendChild(hoverPath);
+    if (!selectedDate || isHighlighted) hoverLayers.push(hoverPath);
   });
 
-  const medianPath = pathFromPoints(data.medianPerformance.map((point) => ({ x: point.day, y: point.return })), xScale, yScale);
+  const medianPoints = data.medianPerformance.map((point) => ({ x: point.day, y: point.return }));
+  const medianPath = pathFromPoints(medianPoints, xScale, yScale);
   root.appendChild(svg("path", {
     d: medianPath,
     fill: "none",
@@ -980,6 +1010,26 @@ function renderSignalPerformance() {
   }));
 
   selectedLayers.forEach((layer) => root.appendChild(layer));
+
+  hoverLayers.forEach((layer) => root.appendChild(layer));
+  const medianHoverPath = svg("path", {
+    d: medianPath,
+    fill: "none",
+    stroke: "transparent",
+    "stroke-width": 16,
+    "pointer-events": "stroke",
+  });
+  medianHoverPath.addEventListener("mousemove", (event) => {
+    const svgPoint = root.createSVGPoint();
+    svgPoint.x = event.clientX;
+    svgPoint.y = event.clientY;
+    const cursor = svgPoint.matrixTransform(root.getScreenCTM().inverse());
+    const day = Math.max(0, Math.min(medianPoints.length - 1, Math.round(xScale.invert(cursor.x))));
+    const nearest = medianPoints[day] || medianPoints[medianPoints.length - 1];
+    showTooltip(`<strong>Median signal</strong>Day ${nearest.x}: ${fmtPct(nearest.y)}`, event);
+  });
+  medianHoverPath.addEventListener("mouseleave", hideTooltip);
+  root.appendChild(medianHoverPath);
 
   const legend = svg("g", { class: "legend", transform: `translate(${plot.left} ${height - 16})` });
   legend.appendChild(svg("line", { x1: 0, x2: 30, y1: 0, y2: 0, stroke: "#151515", "stroke-width": 4 }));
