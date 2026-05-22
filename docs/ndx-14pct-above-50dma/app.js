@@ -294,13 +294,10 @@ function getWatermarkImage() {
   if (!watermarkImagePromise) {
     watermarkImagePromise = (async () => {
       const sources = [
-        "dc_watermark_w.png",
-        "DC_Watermark_W.png",
-        "../dc_watermark_w.png",
-        "../DC_Watermark_W.png",
-        "dc_logo_bnw.png",
+        "dc-logo-wnb.png",
+        "../dc-logo-wnb.png",
         "DC_Logo_BnW.png",
-        "../dc_logo_bnw.png",
+        "../DC_Logo_BnW.png",
       ];
       for (const source of sources) {
         try {
@@ -368,10 +365,43 @@ async function drawSourceFooter(ctx, canvas, footerTop, footerHeightPx, scale) {
   }
 }
 
-async function svgToPngBlob(svgNode) {
+function exportHeadingForButton(button) {
+  const panel = button.closest(".panel");
+  return {
+    kicker: panel?.querySelector(".panel-heading .section-kicker")?.textContent.trim() || "",
+    title: panel?.querySelector(".panel-heading h2")?.textContent.trim() || "",
+  };
+}
+
+function exportHeadingHeight(heading) {
+  return heading?.kicker || heading?.title ? 76 : 0;
+}
+
+function drawExportHeading(ctx, heading, x, y, width, height) {
+  if (!height) return;
+  ctx.save();
+  ctx.fillStyle = "#167c62";
+  ctx.font = "800 12px Inter, ui-sans-serif, system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  if (heading.kicker) ctx.fillText(heading.kicker.toUpperCase(), x, y + 16, width);
+  ctx.fillStyle = "#1d211c";
+  ctx.font = "850 23px Inter, ui-sans-serif, system-ui, sans-serif";
+  ctx.fillText(heading.title || heading.kicker, x, y + 36, width);
+  ctx.strokeStyle = "#d9ded5";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, y + height - 0.5);
+  ctx.lineTo(x + width, y + height - 0.5);
+  ctx.stroke();
+  ctx.restore();
+}
+
+async function svgToPngBlob(svgNode, heading = {}) {
   const { width, height } = parseViewBox(svgNode);
   const scale = 2;
   const footerHeight = 58;
+  const headingHeight = exportHeadingHeight(heading);
   const clone = svgNode.cloneNode(true);
   clone.setAttribute("width", width);
   clone.setAttribute("height", height);
@@ -389,14 +419,19 @@ async function svgToPngBlob(svgNode) {
     const chartImage = await loadImage(url);
     const canvas = document.createElement("canvas");
     canvas.width = Math.ceil(width * scale);
-    canvas.height = Math.ceil((height + footerHeight) * scale);
+    canvas.height = Math.ceil((headingHeight + height + footerHeight) * scale);
     const chartHeight = Math.ceil(height * scale);
-    const footerTop = chartHeight;
+    const chartTop = Math.ceil(headingHeight * scale);
+    const footerTop = chartTop + chartHeight;
     const footerHeightPx = footerHeight * scale;
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(chartImage, 0, 0, canvas.width, chartHeight);
+    ctx.save();
+    ctx.scale(scale, scale);
+    drawExportHeading(ctx, heading, 18, 0, width - 36, headingHeight);
+    ctx.restore();
+    ctx.drawImage(chartImage, 0, chartTop, canvas.width, chartHeight);
 
     await drawSourceFooter(ctx, canvas, footerTop, footerHeightPx, scale);
 
@@ -506,18 +541,19 @@ function drawSummaryCallouts(ctx, callouts, x, y, width, height) {
   });
 }
 
-async function tableSectionToPngBlob(target) {
+async function tableSectionToPngBlob(target, heading = {}) {
   const table = target.matches("table") ? target : target.querySelector("table");
   if (!table) throw new Error("Table is not ready yet.");
   const scale = 2;
   const footerHeight = 58;
   const pad = 18;
+  const headingHeight = exportHeadingHeight(heading);
   const callouts = target.querySelectorAll(".summary-callout");
   const metrics = tableColumnMetrics(table);
   const calloutHeight = callouts.length ? 84 : 0;
   const gap = callouts.length ? 16 : 0;
   const contentWidth = metrics.width + pad * 2;
-  const contentHeight = pad + calloutHeight + gap + metrics.height + pad;
+  const contentHeight = headingHeight + pad + calloutHeight + gap + metrics.height + pad;
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(contentWidth * scale);
   canvas.height = Math.ceil((contentHeight + footerHeight) * scale);
@@ -526,10 +562,11 @@ async function tableSectionToPngBlob(target) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.save();
   ctx.scale(scale, scale);
+  drawExportHeading(ctx, heading, pad, 0, metrics.width, headingHeight);
   if (callouts.length) {
-    drawSummaryCallouts(ctx, Array.from(callouts), pad, pad, metrics.width, calloutHeight);
+    drawSummaryCallouts(ctx, Array.from(callouts), pad, headingHeight + pad, metrics.width, calloutHeight);
   }
-  drawExportTable(ctx, table, pad, pad + calloutHeight + gap, metrics);
+  drawExportTable(ctx, table, pad, headingHeight + pad + calloutHeight + gap, metrics);
   ctx.restore();
   await drawSourceFooter(ctx, canvas, contentHeight * scale, footerHeight * scale, scale);
   return await canvasToBlob(canvas);
@@ -581,7 +618,7 @@ async function copyChartImage(button) {
   const container = document.querySelector(button.dataset.copyImage);
   const svgNode = container?.querySelector("svg");
   if (!svgNode) throw new Error("Chart is not ready yet.");
-  await writePngToClipboard(svgToPngBlob(svgNode));
+  await writePngToClipboard(svgToPngBlob(svgNode, exportHeadingForButton(button)));
 }
 
 async function copyTable(button) {
@@ -593,7 +630,7 @@ async function copyTable(button) {
 async function copyTableImage(button) {
   const target = document.querySelector(button.dataset.copyTableImage);
   if (!target) throw new Error("Table is not ready yet.");
-  await writePngToClipboard(tableSectionToPngBlob(target));
+  await writePngToClipboard(tableSectionToPngBlob(target, exportHeadingForButton(button)));
 }
 
 function setupShareButtons() {
@@ -698,15 +735,71 @@ function renderHeader() {
   );
 }
 
+function currentSummaryReturnMetric() {
+  return document.querySelector("[data-summary-return-metric].is-active")?.dataset.summaryReturnMetric || "average";
+}
+
+function comparisonPointForHorizon(horizon) {
+  return data.comparison.find((point) => point.horizon === horizon) || null;
+}
+
+function returnCardForMetric(card, metric) {
+  const point = comparisonPointForHorizon(card.horizon);
+  if (!point) return card;
+  const isMedian = metric === "median";
+  return {
+    ...card,
+    kind: isMedian ? "medianReturn" : "averageReturn",
+    label: `${card.horizon} ${isMedian ? "median" : "avg."} return`,
+    value: isMedian ? point.signalMedian : point.signalAverage,
+    baseline: isMedian ? point.allMedian : point.allAverage,
+    sampleSize: point.signalCount ?? card.sampleSize,
+  };
+}
+
+function drawdownCardForMetric(card, metric) {
+  if (metric !== "median") return card;
+  return {
+    ...card,
+    label: "Median max drawdown",
+    value: card.median,
+    baseline: getStat("Median All-Dataset Return", "12M MaxDD"),
+  };
+}
+
+function setupSummaryReturnMetricToggle() {
+  const buttons = Array.from(document.querySelectorAll("[data-summary-return-metric]"));
+  if (!buttons.length || buttons[0].dataset.metricToggleReady) return;
+  buttons.forEach((button) => {
+    button.dataset.metricToggleReady = "true";
+    button.addEventListener("click", () => {
+      buttons.forEach((candidate) => {
+        const isActive = candidate === button;
+        candidate.classList.toggle("is-active", isActive);
+        candidate.setAttribute("aria-pressed", String(isActive));
+      });
+      renderCards();
+    });
+  });
+}
+
 function renderCards() {
   const grid = document.getElementById("summary-cards");
   const featureGrid = document.getElementById("summary-feature-cards");
+  const metric = currentSummaryReturnMetric();
+  const isMedian = metric === "median";
+  const summaryTitle = document.getElementById("summary-returns-title");
+  if (summaryTitle) summaryTitle.textContent = isMedian ? "Median returns vs all-day baseline" : "Average returns vs all-day baseline";
   grid.replaceChildren();
   featureGrid.replaceChildren();
   data.cards.forEach((card) => {
+    if (card.kind === "averageReturn") {
+      card = returnCardForMetric(card, metric);
+    } else if (card.kind === "drawdown") {
+      card = drawdownCardForMetric(card, metric);
+    }
     const node = el("div", { class: `stat-card card-${card.kind}` });
-    const label = card.kind === "drawdown" ? "12M MaxDD" : card.label;
-    node.appendChild(el("div", { class: "stat-label" }, label));
+    node.appendChild(el("div", { class: "stat-label" }, card.label));
 
     let valueText = "";
     let detailText = "";
@@ -726,7 +819,7 @@ function renderCards() {
       if (typeof card.baseline === "number" && card.value > card.baseline) valueClass += " stat-value-benchmark";
     } else if (card.kind === "drawdown") {
       valueText = fmtPct(card.value);
-      detailText = `n=${card.sampleSize}; all-day avg. ${fmtPct(card.baseline)}`;
+      detailText = `n=${card.sampleSize}; ${isMedian ? "all-day median" : "all-day avg."} ${fmtPct(card.baseline)}`;
       if (typeof card.baseline === "number" && card.value > card.baseline) valueClass += " stat-value-benchmark";
     } else {
       valueText = fmtPct(card.value);
@@ -1381,6 +1474,7 @@ function renderAll() {
   setupBackLinks();
   renderHeader();
   renderParameterDescription();
+  setupSummaryReturnMetricToggle();
   renderCards();
   renderTriggerChart();
   setupReturnMetricToggle();

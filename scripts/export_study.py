@@ -16,6 +16,7 @@ import build_dashboard_data
 ROOT = Path(__file__).resolve().parents[1]
 PUBLISH_DIR = ROOT / "docs"
 CNAME_DOMAIN = "studies.dailychartbook.com"
+GA4_MEASUREMENT_ID = "G-DS53FBC30P"
 WEB_FILES = ["index.html", "styles.css", "app.js", "dashboard-data.js"]
 FAVICON_FILE = "DC_Logo_BnW.png"
 FAVICON_SOURCES = [ROOT / FAVICON_FILE]
@@ -23,8 +24,8 @@ LOGO_FILE = FAVICON_FILE
 LOGO_SOURCES = [ROOT / LOGO_FILE]
 LANDING_LOGO_FILE = "dc-logo-wnb.png"
 LANDING_LOGO_SOURCES = [ROOT / LANDING_LOGO_FILE]
-WATERMARK_FILE = "dc_watermark_w.png"
-WATERMARK_SOURCES = [ROOT / WATERMARK_FILE, ROOT / "DC_Watermark_W.png"]
+WATERMARK_FILE = LANDING_LOGO_FILE
+WATERMARK_SOURCES = [ROOT / LANDING_LOGO_FILE]
 THUMBNAIL_FILE = "trigger-map-thumbnail.svg"
 DISCLAIMER = (
     "Daily Chartbook Studies are for informational and educational purposes only and are not investment advice "
@@ -33,6 +34,16 @@ DISCLAIMER = (
     "trading costs, taxes, slippage, liquidity, or execution constraints. Data and calculations may contain errors "
     "or omissions. Readers should conduct their own research and consult a qualified adviser before making investment decisions."
 )
+
+
+def google_tag() -> str:
+    return f"""<script async src="https://www.googletagmanager.com/gtag/js?id={GA4_MEASUREMENT_ID}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){{dataLayer.push(arguments);}}
+      gtag('js', new Date());
+      gtag('config', '{GA4_MEASUREMENT_ID}');
+    </script>"""
 
 
 def slugify(text: str, fallback: str = "backtest-study") -> str:
@@ -329,6 +340,7 @@ def build_landing_page(studies: list[Path]) -> str:
     <title>Backtests: Visualized</title>
     <link rel="icon" type="image/png" href="/DC_Logo_BnW.png">
     <link rel="apple-touch-icon" href="/DC_Logo_BnW.png">
+    {google_tag()}
     <style>
       :root {{
         --accent: #26984D;

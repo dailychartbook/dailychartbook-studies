@@ -7,7 +7,14 @@
     <title>RSPD/RSPS Drawdown &gt; 15% While S&amp;P 500 &lt; 5% | Daily Chartbook Studies</title>
     <link rel="icon" type="image/png" href="/DC_Logo_BnW.png">
     <link rel="apple-touch-icon" href="/DC_Logo_BnW.png">
-    <link rel="stylesheet" href="styles.css?v=table-image-share">
+    <link rel="stylesheet" href="styles.css?v=summary-median-export">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DS53FBC30P"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DS53FBC30P');
+    </script>
   </head>
   <body>
     <header class="topbar">
@@ -31,6 +38,16 @@
             <div class="summary-copy">
               <p class="section-kicker">AI Summary</p>
               <p id="ai-description"></p>
+            </div>
+          </div>
+          <div class="summary-stat-controls">
+            <div>
+              <p class="section-kicker">Forward Returns</p>
+              <h2 id="summary-returns-title">Average returns vs all-day baseline</h2>
+            </div>
+            <div class="segmented-control" role="group" aria-label="Summary return metric">
+              <button class="segmented-button is-active" type="button" data-summary-return-metric="average" aria-pressed="true">Avg</button>
+              <button class="segmented-button" type="button" data-summary-return-metric="median" aria-pressed="false">Median</button>
             </div>
           </div>
           <div class="cards-grid" id="summary-cards"></div>

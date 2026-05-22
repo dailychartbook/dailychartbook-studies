@@ -200,6 +200,23 @@ h2 {
   font-size: clamp(1.28rem, 1.75vw, 1.76rem);
 }
 
+.summary-stat-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.summary-stat-controls h2 {
+  margin: 0;
+}
+
+.summary-stat-controls .segmented-control {
+  margin-bottom: 1px;
+}
+
 .stat-label {
   color: var(--muted);
   font-size: 0.76rem;
