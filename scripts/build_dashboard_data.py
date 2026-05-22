@@ -308,26 +308,42 @@ def choose_source_columns(
 
 def read_source_data(preferred_asset_name: str | None = None, preferred_trigger_name: str | None = None) -> dict[str, Any]:
     workbook = openpyxl.load_workbook(DATA_XLSX, data_only=True, read_only=True)
-    sheet = workbook[workbook.sheetnames[0]]
-    headers = [str(cell.value).strip() if cell.value is not None else "" for cell in sheet[1]]
-    if len(headers) < 3:
-        raise ValueError("backtest-data.xlsx needs at least Date, asset, and trigger columns.")
+    if normalize_key(preferred_asset_name) in {"all", "signal", "signals", "cumulative"}:
+        preferred_asset_name = None
 
-    asset_idx, indicator_idx, asset_name, indicator_name = choose_source_columns(headers, sheet.title, preferred_asset_name, preferred_trigger_name)
-    series: list[dict[str, Any]] = []
-    for row in sheet.iter_rows(min_row=2, values_only=True):
-        row_date = parse_date(row[0])
-        asset = to_number(row[asset_idx]) if asset_idx < len(row) else None
-        indicator = to_number(row[indicator_idx]) if indicator_idx is not None and indicator_idx < len(row) else None
-        if row_date and asset is not None:
-            series.append({"date": row_date, "asset": asset, "indicator": indicator})
+    candidates: list[dict[str, Any]] = []
+    for sheet in workbook.worksheets:
+        headers = [str(cell.value).strip() if cell.value is not None else "" for cell in sheet[1]]
+        if len(headers) < 2:
+            continue
 
-    if not series:
+        asset_idx, indicator_idx, asset_name, indicator_name = choose_source_columns(headers, sheet.title, preferred_asset_name, preferred_trigger_name)
+        series: list[dict[str, Any]] = []
+        for row in sheet.iter_rows(min_row=2, values_only=True):
+            row_date = parse_date(row[0])
+            asset = to_number(row[asset_idx]) if asset_idx < len(row) else None
+            indicator = to_number(row[indicator_idx]) if indicator_idx is not None and indicator_idx < len(row) else None
+            if row_date and asset is not None:
+                series.append({"date": row_date, "asset": asset, "indicator": indicator})
+
+        if series:
+            candidates.append(
+                {
+                    "assetName": asset_name,
+                    "indicatorName": indicator_name,
+                    "series": series,
+                    "preferredMatch": normalize_key(asset_name) == normalize_key(preferred_asset_name),
+                }
+            )
+
+    if not candidates:
         raise ValueError("No usable rows found in backtest-data.xlsx.")
 
+    selected = max(candidates, key=lambda candidate: (candidate["preferredMatch"], len(candidate["series"])))
+    series = selected["series"]
     return {
-        "assetName": asset_name,
-        "indicatorName": indicator_name,
+        "assetName": selected["assetName"],
+        "indicatorName": selected["indicatorName"],
         "series": series,
         "dateRange": {
             "start": series[0]["date"],
@@ -427,6 +443,9 @@ def read_results() -> dict[str, Any]:
     title, summary_text, summary_sections = read_summary_text(workbook)
     profile_asset_name = extract_profile_asset_name(workbook)
     sheet, header_row, header_start_col = find_results_table(workbook)
+    previous_header = sheet.cell(header_row, header_start_col - 1).value if header_start_col > 1 else None
+    if previous_header is not None and str(previous_header).strip():
+        header_start_col -= 1
 
     header_cols = [
         col
@@ -442,6 +461,10 @@ def read_results() -> dict[str, Any]:
         normalize_header(sheet.cell(header_row, col).value) or f"Column {col}"
         for col in table_cols
     ]
+    try:
+        signal_date_idx = headers.index("Signal Date")
+    except ValueError as exc:
+        raise ValueError("Could not find a 'Signal Date' column in the Backtest Results table.") from exc
 
     table_rows: list[dict[str, Any]] = []
     signal_rows: list[dict[str, Any]] = []
@@ -454,16 +477,18 @@ def read_results() -> dict[str, Any]:
             continue
 
         row_values = [serialize_cell(value) for value in values]
+        parsed_signal_date = parse_date(values[signal_date_idx])
         first_text = "" if values[0] is None else str(values[0]).strip()
-        parsed_signal_date = parse_date(values[0])
         canonical_label = canonical_stat_label(first_text)
         kind = "signal" if parsed_signal_date else "note" if first_text.startswith(("Notes", "-", "*", "•")) else "stat"
+        if canonical_label:
+            row_values[0] = canonical_label
 
         table_rows.append({"kind": kind, "label": canonical_label or first_text, "values": row_values})
 
         if parsed_signal_date:
             row_map = {
-                headers[idx]: to_number(values[idx]) if idx > 0 else parsed_signal_date
+                headers[idx]: parsed_signal_date if idx == signal_date_idx else serialize_cell(values[idx])
                 for idx in range(len(headers))
             }
             signal_rows.append({"date": parsed_signal_date, "values": row_map})
@@ -514,8 +539,26 @@ def enrich_signals(source: dict[str, Any], results: dict[str, Any]) -> list[dict
     enriched: list[dict[str, Any]] = []
 
     for signal in results["signalRows"]:
-        idx = find_source_index(dates, signal["date"])
+        entry_date = signal["values"].get("Entry Date")
+        idx = find_source_index(dates, entry_date) if isinstance(entry_date, str) else None
         if idx is None:
+            idx = find_source_index(dates, signal["date"])
+        row_values = {
+            key: value
+            for key, value in signal["values"].items()
+            if key != "Signal Date"
+        }
+        if idx is None:
+            enriched.append(
+                {
+                    "date": signal["date"],
+                    "asset": None,
+                    "indicator": None,
+                    "values": row_values,
+                    "performance": [],
+                    "completed12M": row_values.get("12M") is not None,
+                }
+            )
             continue
         start = series[idx]
         start_asset = start["asset"]
@@ -533,11 +576,6 @@ def enrich_signals(source: dict[str, Any], results: dict[str, Any]) -> list[dict
                 }
             )
 
-        row_values = {
-            key: value
-            for key, value in signal["values"].items()
-            if key != "Signal Date"
-        }
         enriched.append(
             {
                 "date": signal["date"],

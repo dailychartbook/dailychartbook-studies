@@ -1,5 +1,5 @@
 {
-  "title": "RSPD/RSPS Drawdown > 15% While S&P 500 < 5%",
-  "description": "Forward return profile when SPX is near highs while RSPD/RSPS is in a 15% drawdown.",
-  "slug": "rspd-rsps-down-15-spx-down-5"
+  "title": "S&P 500 Rises 8 Straight Weeks",
+  "description": "Forward return profile when SPX closes higher for at least 8 consecutive weeks.",
+  "slug": "spx-up-8-straight-weeks"
 }
