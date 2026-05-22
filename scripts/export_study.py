@@ -17,6 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLISH_DIR = ROOT / "docs"
 CNAME_DOMAIN = "studies.dailychartbook.com"
 GA4_MEASUREMENT_ID = "G-DS53FBC30P"
+BUG_REPORT_EMAIL = "dailychartbook@pm.me"
+BUG_REPORT_SUBJECT = "Daily%20Chartbook%20Studies%20bug%20report"
 WEB_FILES = ["index.html", "styles.css", "app.js", "dashboard-data.js"]
 FAVICON_FILE = "DC_Logo_BnW.png"
 FAVICON_SOURCES = [ROOT / FAVICON_FILE]
@@ -44,6 +46,10 @@ def google_tag() -> str:
       gtag('js', new Date());
       gtag('config', '{GA4_MEASUREMENT_ID}');
     </script>"""
+
+
+def bug_report_href() -> str:
+    return f"mailto:{BUG_REPORT_EMAIL}?subject={BUG_REPORT_SUBJECT}"
 
 
 def slugify(text: str, fallback: str = "backtest-study") -> str:
@@ -385,6 +391,27 @@ def build_landing_page(studies: list[Path]) -> str:
         text-transform: uppercase;
       }}
 
+      .brand-block {{
+        display: grid;
+        justify-items: start;
+        gap: 7px;
+      }}
+
+      .beta-tag {{
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 5px 8px;
+        border: 1px solid rgba(38, 152, 77, 0.24);
+        border-radius: 999px;
+        background: rgba(38, 152, 77, 0.08);
+        color: var(--accent);
+        font-size: 0.68rem;
+        font-weight: 820;
+        line-height: 1;
+        text-transform: uppercase;
+      }}
+
       .home-link {{
         display: inline-flex;
         align-items: center;
@@ -577,6 +604,32 @@ def build_landing_page(studies: list[Path]) -> str:
         text-align: center;
       }}
 
+      .report-bug-button {{
+        position: fixed;
+        right: max(18px, env(safe-area-inset-right));
+        bottom: max(18px, env(safe-area-inset-bottom));
+        z-index: 30;
+        display: inline-flex;
+        align-items: center;
+        min-height: 38px;
+        padding: 10px 14px;
+        border: 1px solid rgba(38, 152, 77, 0.28);
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 820;
+        line-height: 1;
+        text-decoration: none;
+        box-shadow: 0 16px 34px rgba(23, 23, 23, 0.16);
+      }}
+
+      .report-bug-button:hover,
+      .report-bug-button:focus-visible {{
+        background: #1f7d3f;
+        outline: none;
+      }}
+
       @media (max-width: 640px) {{
         .page-shell {{
           width: min(100vw - 28px, 1120px);
@@ -596,7 +649,7 @@ def build_landing_page(studies: list[Path]) -> str:
           height: 82px;
         }}
 
-        .brand-mark {{
+        .brand-block {{
           grid-column: 1;
           grid-row: 2;
         }}
@@ -627,7 +680,10 @@ def build_landing_page(studies: list[Path]) -> str:
   <body>
     <div class="page-shell">
       <header class="site-nav">
-        <div class="brand-mark">Daily Chartbook Studies</div>
+        <div class="brand-block">
+          <div class="brand-mark">Daily Chartbook Studies</div>
+          <div class="beta-tag" aria-label="Website is still in beta">BETA</div>
+        </div>
         <img class="site-logo" src="{LANDING_LOGO_FILE}" alt="Daily Chartbook logo">
         <a class="home-link" href="https://www.dailychartbook.com">Daily Chartbook</a>
       </header>
@@ -645,6 +701,7 @@ def build_landing_page(studies: list[Path]) -> str:
         <p class="disclaimer"><strong>Disclaimer:</strong> {escape(DISCLAIMER)}</p>
       </footer>
     </div>
+    <a class="report-bug-button" href="{bug_report_href()}">Report bug</a>
   </body>
 </html>
 """

@@ -57,6 +57,27 @@
         text-transform: uppercase;
       }
 
+      .brand-block {
+        display: grid;
+        justify-items: start;
+        gap: 7px;
+      }
+
+      .beta-tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 5px 8px;
+        border: 1px solid rgba(38, 152, 77, 0.24);
+        border-radius: 999px;
+        background: rgba(38, 152, 77, 0.08);
+        color: var(--accent);
+        font-size: 0.68rem;
+        font-weight: 820;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
       .home-link {
         display: inline-flex;
         align-items: center;
@@ -249,6 +270,32 @@
         text-align: center;
       }
 
+      .report-bug-button {
+        position: fixed;
+        right: max(18px, env(safe-area-inset-right));
+        bottom: max(18px, env(safe-area-inset-bottom));
+        z-index: 30;
+        display: inline-flex;
+        align-items: center;
+        min-height: 38px;
+        padding: 10px 14px;
+        border: 1px solid rgba(38, 152, 77, 0.28);
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 820;
+        line-height: 1;
+        text-decoration: none;
+        box-shadow: 0 16px 34px rgba(23, 23, 23, 0.16);
+      }
+
+      .report-bug-button:hover,
+      .report-bug-button:focus-visible {
+        background: #1f7d3f;
+        outline: none;
+      }
+
       @media (max-width: 640px) {
         .page-shell {
           width: min(100vw - 28px, 1120px);
@@ -268,7 +315,7 @@
           height: 82px;
         }
 
-        .brand-mark {
+        .brand-block {
           grid-column: 1;
           grid-row: 2;
         }
@@ -299,7 +346,10 @@
   <body>
     <div class="page-shell">
       <header class="site-nav">
-        <div class="brand-mark">Daily Chartbook Studies</div>
+        <div class="brand-block">
+          <div class="brand-mark">Daily Chartbook Studies</div>
+          <div class="beta-tag" aria-label="Website is still in beta">BETA</div>
+        </div>
         <img class="site-logo" src="dc-logo-wnb.png" alt="Daily Chartbook logo">
         <a class="home-link" href="https://www.dailychartbook.com">Daily Chartbook</a>
       </header>
@@ -355,5 +405,6 @@
         <p class="disclaimer"><strong>Disclaimer:</strong> Daily Chartbook Studies are for informational and educational purposes only and are not investment advice or a recommendation to buy or sell any security, strategy, or financial instrument. Past performance is not indicative of future results. Backtested results are hypothetical, assumption-dependent, and may not reflect trading costs, taxes, slippage, liquidity, or execution constraints. Data and calculations may contain errors or omissions. Readers should conduct their own research and consult a qualified adviser before making investment decisions.</p>
       </footer>
     </div>
+    <a class="report-bug-button" href="mailto:dailychartbook@pm.me?subject=Daily%20Chartbook%20Studies%20bug%20report">Report bug</a>
   </body>
 </html>

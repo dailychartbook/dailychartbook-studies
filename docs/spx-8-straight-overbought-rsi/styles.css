@@ -693,6 +693,32 @@ tr.note-row td {
   line-height: 1.55;
 }
 
+.report-bug-button {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 10px 14px;
+  border: 1px solid rgba(22, 124, 98, 0.28);
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 820;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 16px 34px rgba(29, 33, 28, 0.16);
+}
+
+.report-bug-button:hover,
+.report-bug-button:focus-visible {
+  background: #105f4b;
+  outline: none;
+}
+
 @media (max-width: 1180px) {
   .dashboard-shell {
     grid-template-columns: 1fr;
