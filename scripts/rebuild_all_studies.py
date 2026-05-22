@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import build_dashboard_data
 import export_study
 
 
@@ -92,14 +93,111 @@ def copy_archive_to_root(archive: Path) -> None:
         shutil.copy2(archive / file_name, ROOT / file_name)
 
 
+def validate_payload(archive: Path, payload: dict) -> None:
+    problems = []
+    signals = payload.get("signals") or []
+    horizons = payload.get("horizons") or []
+    series = payload.get("series") or []
+    stats_rows = payload.get("statsRows") or {}
+    result_table = payload.get("resultTable") or {}
+    comparison = payload.get("comparison") or []
+    summary_sections = payload.get("summarySections") or {}
+
+    if not series:
+        problems.append("no source price rows parsed")
+    if not signals:
+        problems.append("no signal rows parsed")
+    if not horizons:
+        problems.append("no forward-return horizons parsed")
+    if not result_table.get("rows"):
+        problems.append("results table parsed with no rows")
+    if not summary_sections:
+        problems.append("study summary parsed with no sections")
+
+    required_stat_rows = [
+        "Average Signal Return",
+        "Median Signal Return",
+        "Average All-Dataset Return",
+        "Median All-Dataset Return",
+        "Signal Hit Rate",
+        "All-Dataset Hit Rate",
+    ]
+    missing_stats = [row for row in required_stat_rows if row not in stats_rows]
+    if missing_stats:
+        problems.append(f"missing summary stat row(s): {', '.join(missing_stats)}")
+
+    numeric_comparison = [
+        row
+        for row in comparison
+        if any(
+            row.get(key) is not None
+            for key in (
+                "signalAverage",
+                "signalMedian",
+                "allAverage",
+                "allMedian",
+                "signalHitRate",
+                "allHitRate",
+            )
+        )
+    ]
+    if comparison and not numeric_comparison:
+        problems.append("comparison rows parsed, but all return and hit-rate stats are blank")
+
+    expected_12m_points = build_dashboard_data.TRADING_DAY_HORIZONS["12M"] + 1
+    short_completed = [
+        signal.get("date")
+        for signal in signals
+        if signal.get("completed12M")
+        and signal.get("asset") is not None
+        and len(signal.get("performance") or []) < expected_12m_points
+    ]
+    if short_completed:
+        preview = ", ".join(str(date) for date in short_completed[:5])
+        extra = "" if len(short_completed) <= 5 else f" (+{len(short_completed) - 5} more)"
+        problems.append(f"completed 12M signal(s) have short performance paths: {preview}{extra}")
+
+    if problems:
+        joined = "; ".join(problems)
+        raise ValueError(joined)
+
+
+def validate_archive_payloads(archives: list[Path]) -> None:
+    failures = []
+    with tempfile.TemporaryDirectory(prefix="backtest-parse-validate-") as tmp:
+        backup_map = backup_root_files(Path(tmp))
+        try:
+            for archive in archives:
+                try:
+                    copy_archive_to_root(archive)
+                    payload = build_dashboard_data.build_payload()
+                    validate_payload(archive, payload)
+                    completed = sum(1 for signal in payload.get("signals", []) if signal.get("completed12M"))
+                    print(
+                        f"Validated {archive.name}: "
+                        f"{len(payload.get('signals', []))} signals, "
+                        f"{completed} completed 12M windows, "
+                        f"{len(payload.get('horizons', []))} horizons."
+                    )
+                except Exception as exc:
+                    failures.append(f"- {archive.name}: {exc}")
+        finally:
+            restore_root_files(backup_map)
+
+    if failures:
+        details = "\n".join(failures)
+        raise RuntimeError(f"Archive parse validation failed:\n{details}")
+
+
 def rebuild_all(dry_run: bool = False) -> None:
     archives = archive_dirs()
     for archive in archives:
         validate_archive(archive)
     validate_published_archives(archives)
+    validate_archive_payloads(archives)
 
     if dry_run:
-        print("Dry run: every published study has a matching archive.")
+        print("Dry run: every published study has a matching archive and every archive parsed successfully.")
         print("Archived studies ready to rebuild:")
         for archive in archives:
             print(f"- {archive.name}")
