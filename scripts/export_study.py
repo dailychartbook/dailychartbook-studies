@@ -18,7 +18,7 @@ PUBLISH_DIR = ROOT / "docs"
 CNAME_DOMAIN = "studies.dailychartbook.com"
 GA4_MEASUREMENT_ID = "G-DS53FBC30P"
 BUG_REPORT_EMAIL = "dailychartbook@pm.me"
-BUG_REPORT_SUBJECT = "Daily%20Chartbook%20Studies%20bug%20report"
+BUG_REPORT_SUBJECT = "Daily Chartbook Studies bug report"
 WEB_FILES = ["index.html", "styles.css", "app.js", "dashboard-data.js"]
 FAVICON_FILE = "DC_Logo_BnW.png"
 FAVICON_SOURCES = [ROOT / FAVICON_FILE]
@@ -48,8 +48,35 @@ def google_tag() -> str:
     </script>"""
 
 
-def bug_report_href() -> str:
-    return f"mailto:{BUG_REPORT_EMAIL}?subject={BUG_REPORT_SUBJECT}"
+def bug_report_script() -> str:
+    return """<script>
+      document.querySelectorAll("[data-report-bug-button]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const email = button.dataset.reportEmail || "dailychartbook@pm.me";
+          const subject = button.dataset.reportSubject || "Daily Chartbook Studies bug report";
+          const body = `Page: ${window.location.href}\\n\\nWhat happened?\\n`;
+          const href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+          const original = button.dataset.label || button.textContent;
+          button.dataset.label = original;
+          window.setTimeout(async () => {
+            if (document.hidden) return;
+            let label = email;
+            try {
+              if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+              await navigator.clipboard.writeText(email);
+              label = "Email copied";
+            } catch {
+              // Showing the address is the fallback when clipboard access is unavailable.
+            }
+            button.textContent = label;
+            window.setTimeout(() => {
+              button.textContent = button.dataset.label;
+            }, 2200);
+          }, 900);
+          window.location.href = href;
+        });
+      });
+    </script>"""
 
 
 def slugify(text: str, fallback: str = "backtest-study") -> str:
@@ -617,11 +644,13 @@ def build_landing_page(studies: list[Path]) -> str:
         border-radius: 999px;
         background: var(--accent);
         color: #fff;
+        font: inherit;
         font-size: 0.8rem;
         font-weight: 820;
         line-height: 1;
         text-decoration: none;
         box-shadow: 0 16px 34px rgba(23, 23, 23, 0.16);
+        cursor: pointer;
       }}
 
       .report-bug-button:hover,
@@ -701,7 +730,14 @@ def build_landing_page(studies: list[Path]) -> str:
         <p class="disclaimer"><strong>Disclaimer:</strong> {escape(DISCLAIMER)}</p>
       </footer>
     </div>
-    <a class="report-bug-button" href="{bug_report_href()}">Report bug</a>
+    <button
+      class="report-bug-button"
+      type="button"
+      data-report-bug-button
+      data-report-email="{escape(BUG_REPORT_EMAIL, quote=True)}"
+      data-report-subject="{escape(BUG_REPORT_SUBJECT, quote=True)}"
+    >Report bug</button>
+    {bug_report_script()}
   </body>
 </html>
 """

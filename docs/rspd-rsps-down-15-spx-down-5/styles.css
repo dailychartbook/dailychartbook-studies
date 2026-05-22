@@ -706,11 +706,13 @@ tr.note-row td {
   border-radius: 999px;
   background: var(--green);
   color: #fff;
+  font: inherit;
   font-size: 0.8rem;
   font-weight: 820;
   line-height: 1;
   text-decoration: none;
   box-shadow: 0 16px 34px rgba(29, 33, 28, 0.16);
+  cursor: pointer;
 }
 
 .report-bug-button:hover,

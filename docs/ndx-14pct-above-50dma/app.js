@@ -1466,6 +1466,48 @@ function setupHelpButtons() {
   });
 }
 
+function reportBugMailto(button) {
+  const email = button.dataset.reportEmail || "dailychartbook@pm.me";
+  const subject = button.dataset.reportSubject || "Daily Chartbook Studies bug report";
+  const body = `Page: ${window.location.href}\n\nWhat happened?\n`;
+  return {
+    email,
+    href: `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+  };
+}
+
+function setReportBugFallback(button, email) {
+  const original = button.dataset.label || button.textContent;
+  button.dataset.label = original;
+  window.setTimeout(async () => {
+    if (document.hidden) return;
+    let label = email;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(email);
+      label = "Email copied";
+    } catch {
+      // Showing the address is the fallback when clipboard access is unavailable.
+    }
+    button.textContent = label;
+    window.setTimeout(() => {
+      button.textContent = button.dataset.label;
+    }, 2200);
+  }, 900);
+}
+
+function setupReportBugButtons() {
+  document.querySelectorAll("[data-report-bug-button]").forEach((button) => {
+    if (button.dataset.reportBugReady) return;
+    button.dataset.reportBugReady = "true";
+    button.addEventListener("click", () => {
+      const { email, href } = reportBugMailto(button);
+      setReportBugFallback(button, email);
+      window.location.href = href;
+    });
+  });
+}
+
 function renderAll() {
   if (!data) {
     document.body.replaceChildren(el("main", {}, "Run scripts/build_dashboard_data.py to generate dashboard-data.js."));
@@ -1488,6 +1530,7 @@ function renderAll() {
   renderTable();
   setupHelpButtons();
   setupShareButtons();
+  setupReportBugButtons();
 }
 
 renderAll();
