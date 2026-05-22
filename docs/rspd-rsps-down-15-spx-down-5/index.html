@@ -19,24 +19,25 @@
       <div class="meta-strip" id="study-meta"></div>
     </header>
 
-    <main>
-      <section class="summary-band">
-        <div class="summary-intro-grid">
-          <div class="summary-stat-stack" id="summary-feature-cards"></div>
-          <div class="summary-copy parameter-card">
-            <p class="section-kicker">Trigger Criteria</p>
-            <p id="parameter-description"></p>
+    <main class="dashboard-shell">
+      <div class="dashboard-content">
+        <section class="summary-band" id="overview">
+          <div class="summary-intro-grid">
+            <div class="summary-stat-stack" id="summary-feature-cards"></div>
+            <div class="summary-copy parameter-card">
+              <p class="section-kicker">Trigger Criteria</p>
+              <p id="parameter-description"></p>
+            </div>
+            <div class="summary-copy">
+              <p class="section-kicker">AI Summary</p>
+              <p id="ai-description"></p>
+            </div>
           </div>
-          <div class="summary-copy">
-            <p class="section-kicker">AI Summary</p>
-            <p id="ai-description"></p>
-          </div>
-        </div>
-        <div class="cards-grid" id="summary-cards"></div>
-      </section>
+          <div class="cards-grid" id="summary-cards"></div>
+        </section>
 
-      <section class="dashboard-grid">
-        <article class="panel panel-wide">
+        <section class="dashboard-grid">
+        <article class="panel panel-wide" id="signal-map">
           <div class="panel-header">
             <div class="panel-heading">
               <p class="section-kicker">Signal Map</p>
@@ -49,7 +50,7 @@
           <div id="trigger-chart" class="chart chart-tall"></div>
         </article>
 
-        <article class="panel">
+        <article class="panel" id="forward-returns">
           <div class="panel-header">
             <div class="panel-heading">
               <p class="section-kicker">Forward Returns</p>
@@ -66,7 +67,7 @@
           <div id="forward-returns-chart" class="chart chart-medium"></div>
         </article>
 
-        <article class="panel">
+        <article class="panel" id="hit-rates">
           <div class="panel-header">
             <div class="panel-heading">
               <p class="section-kicker">Hit Rates</p>
@@ -79,13 +80,17 @@
           <div id="hit-rate-chart" class="chart chart-medium"></div>
         </article>
 
-        <article class="panel panel-wide">
+        <article class="panel panel-wide" id="signal-performance">
           <div class="panel-header">
             <div class="panel-heading">
               <p class="section-kicker">Signal Performance</p>
               <h2>Forward path after each trigger</h2>
             </div>
             <div class="panel-actions">
+              <div class="segmented-control" role="group" aria-label="Signal performance aggregate">
+                <button class="segmented-button is-active" type="button" data-performance-metric="median" aria-pressed="true">Median</button>
+                <button class="segmented-button" type="button" data-performance-metric="average" aria-pressed="false">Avg</button>
+              </div>
               <label class="signal-select-label" for="signal-highlight-select">Highlight</label>
               <select class="signal-select" id="signal-highlight-select" aria-label="Highlight a signal path">
                 <option value="">Median signal</option>
@@ -96,7 +101,7 @@
           <div id="signal-performance-chart" class="chart chart-large"></div>
         </article>
 
-        <article class="panel panel-wide">
+        <article class="panel panel-wide" id="distribution">
           <div class="panel-header">
             <div class="panel-heading">
               <p class="section-kicker">Distribution</p>
@@ -110,7 +115,7 @@
           <div id="distribution-chart" class="chart chart-large"></div>
         </article>
 
-        <article class="panel panel-wide">
+        <article class="panel panel-wide" id="study-summary">
           <div class="panel-header">
             <div class="panel-heading">
               <p class="section-kicker">Study Summary</p>
@@ -124,7 +129,7 @@
           <div id="summary-matrix" class="summary-matrix-wrap"></div>
         </article>
 
-        <article class="panel panel-wide">
+        <article class="panel panel-wide" id="results-table-section">
           <div class="panel-header">
             <div class="panel-heading">
               <p class="section-kicker">Results Table</p>
@@ -139,8 +144,23 @@
           <div class="table-wrap">
             <table id="results-table"></table>
           </div>
-        </article>
-      </section>
+          </article>
+        </section>
+      </div>
+
+      <aside class="toc-panel" aria-label="Dashboard sections">
+        <p class="toc-kicker">On this page</p>
+        <nav class="toc-nav">
+          <a href="#overview">Overview</a>
+          <a href="#signal-map">Signal Map</a>
+          <a href="#forward-returns">Forward Returns</a>
+          <a href="#hit-rates">Hit Rates</a>
+          <a href="#signal-performance">Signal Performance</a>
+          <a href="#distribution">Distribution</a>
+          <a href="#study-summary">Study Summary</a>
+          <a href="#results-table-section">Results Table</a>
+        </nav>
+      </aside>
     </main>
 
     <footer class="page-footer">

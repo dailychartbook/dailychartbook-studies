@@ -942,7 +942,7 @@ function setupSignalHighlightSelect() {
   if (!select) return;
   const currentValue = select.value;
   const options = [
-    { value: "", label: "Median signal" },
+    { value: "", label: `${performanceAggregateLabel()} signal` },
     ...data.signals.map((signal) => ({
       value: signal.date,
       label: `${signal.date} (${fmtPct(signal.values["12M"])})`,
@@ -955,16 +955,66 @@ function setupSignalHighlightSelect() {
   select.addEventListener("change", renderSignalPerformance);
 }
 
+function currentPerformanceMetric() {
+  return document.querySelector("[data-performance-metric].is-active")?.dataset.performanceMetric || "median";
+}
+
+function performanceAggregateLabel() {
+  return currentPerformanceMetric() === "average" ? "Average" : "Median";
+}
+
+function updateSignalAggregateOptionLabel() {
+  const option = document.querySelector("#signal-highlight-select option[value='']");
+  if (option) option.textContent = `${performanceAggregateLabel()} signal`;
+}
+
+function aggregatePerformancePoints(metric) {
+  if (metric === "median") {
+    return data.medianPerformance.map((point) => ({ x: point.day, y: point.return }));
+  }
+
+  const maxLength = Math.max(0, ...data.signals.map((signal) => signal.performance.length));
+  const points = [];
+  for (let day = 0; day < maxLength; day += 1) {
+    const values = data.signals
+      .map((signal) => signal.performance[day]?.return)
+      .filter((value) => typeof value === "number" && Number.isFinite(value));
+    if (!values.length) continue;
+    points.push({ x: day, y: values.reduce((sum, value) => sum + value, 0) / values.length });
+  }
+  return points;
+}
+
+function setupPerformanceMetricToggle() {
+  const buttons = Array.from(document.querySelectorAll("[data-performance-metric]"));
+  if (!buttons.length || buttons[0].dataset.performanceToggleReady) return;
+  buttons.forEach((button) => {
+    button.dataset.performanceToggleReady = "true";
+    button.addEventListener("click", () => {
+      buttons.forEach((candidate) => {
+        const isActive = candidate === button;
+        candidate.classList.toggle("is-active", isActive);
+        candidate.setAttribute("aria-pressed", String(isActive));
+      });
+      updateSignalAggregateOptionLabel();
+      renderSignalPerformance();
+    });
+  });
+}
+
 function renderSignalPerformance() {
   const container = document.getElementById("signal-performance-chart");
   const selectedDate = document.getElementById("signal-highlight-select")?.value || "";
   const selectedSignal = data.signals.find((signal) => signal.date === selectedDate);
+  const aggregateMetric = currentPerformanceMetric();
+  const aggregateLabel = performanceAggregateLabel();
+  const aggregatePoints = aggregatePerformancePoints(aggregateMetric);
   const width = 1160;
   const height = 430;
   const margin = { top: 26, right: 32, bottom: 58, left: 72 };
   const plot = { left: margin.left, right: width - margin.right, top: margin.top, bottom: height - margin.bottom };
   const root = svg("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": "Signal performance for 12 months after each trigger" });
-  const values = data.signals.flatMap((signal) => signal.performance.map((point) => point.return)).concat(data.medianPerformance.map((point) => point.return));
+  const values = data.signals.flatMap((signal) => signal.performance.map((point) => point.return)).concat(aggregatePoints.map((point) => point.y));
   const yDomain = valueExtent(values, { includeZero: true, pad: 0.12 });
   const xScale = linearScale([0, 252], [plot.left, plot.right]);
   const yScale = linearScale(yDomain, [plot.bottom, plot.top]);
@@ -1024,10 +1074,9 @@ function renderSignalPerformance() {
     if (!selectedDate || isHighlighted) hoverLayers.push(hoverPath);
   });
 
-  const medianPoints = data.medianPerformance.map((point) => ({ x: point.day, y: point.return }));
-  const medianPath = pathFromPoints(medianPoints, xScale, yScale);
+  const aggregatePath = pathFromPoints(aggregatePoints, xScale, yScale);
   root.appendChild(svg("path", {
-    d: medianPath,
+    d: aggregatePath,
     fill: "none",
     stroke: "#151515",
     "stroke-width": selectedDate ? 3.2 : 4,
@@ -1038,28 +1087,29 @@ function renderSignalPerformance() {
   selectedLayers.forEach((layer) => root.appendChild(layer));
 
   hoverLayers.forEach((layer) => root.appendChild(layer));
-  const medianHoverPath = svg("path", {
-    d: medianPath,
+  const aggregateHoverPath = svg("path", {
+    d: aggregatePath,
     fill: "none",
     stroke: "transparent",
     "stroke-width": 16,
     "pointer-events": "stroke",
   });
-  medianHoverPath.addEventListener("mousemove", (event) => {
+  aggregateHoverPath.addEventListener("mousemove", (event) => {
+    if (!aggregatePoints.length) return;
     const svgPoint = root.createSVGPoint();
     svgPoint.x = event.clientX;
     svgPoint.y = event.clientY;
     const cursor = svgPoint.matrixTransform(root.getScreenCTM().inverse());
-    const day = Math.max(0, Math.min(medianPoints.length - 1, Math.round(xScale.invert(cursor.x))));
-    const nearest = medianPoints[day] || medianPoints[medianPoints.length - 1];
-    showTooltip(`<strong>Median signal</strong>Day ${nearest.x}: ${fmtPct(nearest.y)}`, event);
+    const day = Math.max(0, Math.min(aggregatePoints.length - 1, Math.round(xScale.invert(cursor.x))));
+    const nearest = aggregatePoints[day] || aggregatePoints[aggregatePoints.length - 1];
+    showTooltip(`<strong>${aggregateLabel} signal</strong>Day ${nearest.x}: ${fmtPct(nearest.y)}`, event);
   });
-  medianHoverPath.addEventListener("mouseleave", hideTooltip);
-  root.appendChild(medianHoverPath);
+  aggregateHoverPath.addEventListener("mouseleave", hideTooltip);
+  root.appendChild(aggregateHoverPath);
 
   const legend = svg("g", { class: "legend", transform: `translate(${plot.left} ${height - 16})` });
   legend.appendChild(svg("line", { x1: 0, x2: 30, y1: 0, y2: 0, stroke: "#151515", "stroke-width": 4 }));
-  addText(legend, "Median signal", { x: 38, y: 4 });
+  addText(legend, `${aggregateLabel} signal`, { x: 38, y: 4 });
   if (selectedSignal) {
     const selectedIndex = data.signals.indexOf(selectedSignal);
     const x = 172;
@@ -1336,6 +1386,7 @@ function renderAll() {
   setupReturnMetricToggle();
   renderForwardReturns();
   renderHitRates();
+  setupPerformanceMetricToggle();
   setupSignalHighlightSelect();
   renderSignalPerformance();
   renderDistribution();
