@@ -719,7 +719,7 @@ def build_landing_page(studies: list[Path]) -> str:
       <main>
         <section class="hero">
           <h1>Backtests: Visualized</h1>
-          <p class="subtitle">Interactive market study dashboards built to show you the numbers, not tell a story</p>
+          <p class="subtitle">Interactive market studies | No narratives, just numbers</p>
         </section>
         <section class="studies-grid" aria-label="Backtest studies">
           {items}
