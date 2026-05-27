@@ -350,13 +350,14 @@ def build_landing_page(studies: list[Path]) -> str:
             if card["thumbnail"]
             else ""
         )
+        meta_lines = "\n            ".join(part for part in (date, published_date) if part)
+        if meta_lines:
+            meta_lines = f"{meta_lines}\n            "
         cards.append(
             f"""<article class="study-card">
           {thumbnail}
           <div class="study-card-body">
-            {date}
-            {published_date}
-            <h2><a class="study-title-link" href="{escape(card["href"])}">{escape(card["title"])}</a></h2>
+            {meta_lines}<h2><a class="study-title-link" href="{escape(card["href"])}">{escape(card["title"])}</a></h2>
             {key_result}
             <p class="study-description">{escape(card["description"])}</p>
           </div>

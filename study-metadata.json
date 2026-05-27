@@ -1,5 +1,5 @@
 {
-  "title": "S&P 500 Rises 8 Straight Weeks",
-  "description": "Forward return profile when SPX closes higher for at least 8 consecutive weeks.",
-  "slug": "spx-up-8-straight-weeks"
+  "title": "S&P 500 Goes From 6% Below its 50DMA to 8% Above It",
+  "description": "Forward return profile when SPX closes 8% above it 50DMA within 32 days of being 6% below it.",
+  "slug": "spx-6%-below-50MA-8%-above"
 }

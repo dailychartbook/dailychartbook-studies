@@ -71,45 +71,72 @@ HORIZON_ALIASES = {
 
 STAT_LABEL_ALIASES = {
     "median signal return": "Median Signal Return",
+    "median signal returns": "Median Signal Return",
     "median signal": "Median Signal Return",
     "median return signal": "Median Signal Return",
     "signal median": "Median Signal Return",
     "average signal return": "Average Signal Return",
+    "average signal returns": "Average Signal Return",
     "average signal": "Average Signal Return",
     "avg signal return": "Average Signal Return",
+    "avg signal returns": "Average Signal Return",
     "avg signal": "Average Signal Return",
     "mean signal return": "Average Signal Return",
+    "mean signal returns": "Average Signal Return",
     "hit rate signal": "Signal Hit Rate",
     "signal hit rate": "Signal Hit Rate",
+    "signal hit rates": "Signal Hit Rate",
     "signal z score": "Signal Z-Score",
     "z score": "Signal Z-Score",
     "zscore": "Signal Z-Score",
     "median all dataset return": "Median All-Dataset Return",
+    "median all dataset returns": "Median All-Dataset Return",
     "median all dataset": "Median All-Dataset Return",
     "median all day return": "Median All-Dataset Return",
+    "median all day returns": "Median All-Dataset Return",
     "median all day": "Median All-Dataset Return",
     "median baseline return": "Median All-Dataset Return",
+    "median baseline returns": "Median All-Dataset Return",
     "all dataset median return": "Median All-Dataset Return",
+    "all dataset median returns": "Median All-Dataset Return",
     "all day median return": "Median All-Dataset Return",
+    "all day median returns": "Median All-Dataset Return",
     "baseline median return": "Median All-Dataset Return",
+    "baseline median returns": "Median All-Dataset Return",
     "average all dataset return": "Average All-Dataset Return",
+    "average all dataset returns": "Average All-Dataset Return",
     "average all dataset": "Average All-Dataset Return",
     "avg all dataset return": "Average All-Dataset Return",
+    "avg all dataset returns": "Average All-Dataset Return",
     "avg all dataset": "Average All-Dataset Return",
     "average all day return": "Average All-Dataset Return",
+    "average all day returns": "Average All-Dataset Return",
     "avg all day return": "Average All-Dataset Return",
+    "avg all day returns": "Average All-Dataset Return",
     "average baseline return": "Average All-Dataset Return",
+    "average baseline returns": "Average All-Dataset Return",
     "all dataset average return": "Average All-Dataset Return",
+    "all dataset average returns": "Average All-Dataset Return",
     "all dataset avg return": "Average All-Dataset Return",
+    "all dataset avg returns": "Average All-Dataset Return",
     "all day average return": "Average All-Dataset Return",
+    "all day average returns": "Average All-Dataset Return",
     "all day avg return": "Average All-Dataset Return",
+    "all day avg returns": "Average All-Dataset Return",
     "baseline average return": "Average All-Dataset Return",
+    "baseline average returns": "Average All-Dataset Return",
     "baseline avg return": "Average All-Dataset Return",
+    "baseline avg returns": "Average All-Dataset Return",
     "hit rate all dataset": "All-Dataset Hit Rate",
+    "hit rates all dataset": "All-Dataset Hit Rate",
     "all dataset hit rate": "All-Dataset Hit Rate",
+    "all dataset hit rates": "All-Dataset Hit Rate",
     "hit rate all day": "All-Dataset Hit Rate",
+    "hit rates all day": "All-Dataset Hit Rate",
     "all day hit rate": "All-Dataset Hit Rate",
+    "all day hit rates": "All-Dataset Hit Rate",
     "baseline hit rate": "All-Dataset Hit Rate",
+    "baseline hit rates": "All-Dataset Hit Rate",
 }
 
 
@@ -161,11 +188,11 @@ def clean_summary_line(value: Any) -> str:
     return text
 
 
-def get_summary_section(sections: dict[str, list[str]], name: str) -> list[str]:
+def get_summary_section(sections: dict[str, list[str]], name: str, fuzzy: bool = True) -> list[str]:
     target = normalize_key(name)
     for section_name, lines in sections.items():
         key = normalize_key(section_name)
-        if key == target or key.startswith(target) or target.startswith(key):
+        if key == target or (fuzzy and (key.startswith(target) or target.startswith(key))):
             return lines
     return []
 
@@ -367,15 +394,114 @@ def find_results_table(workbook: openpyxl.Workbook) -> tuple[openpyxl.worksheet.
     raise ValueError("Could not find a sheet with a 'Signal Date' header.")
 
 
+def choose_results_start_col(
+    sheet: openpyxl.worksheet.worksheet.Worksheet,
+    header_row: int,
+    signal_date_col: int,
+) -> int:
+    label_cols = [
+        col
+        for col in range(1, signal_date_col)
+        if normalize_key(sheet.cell(header_row, col).value) in {"label", "row label", "metric", "stat", "statistic"}
+    ]
+    if label_cols:
+        return label_cols[-1]
+
+    previous_header = sheet.cell(header_row, signal_date_col - 1).value if signal_date_col > 1 else None
+    if previous_header is not None and str(previous_header).strip():
+        return signal_date_col - 1
+    return signal_date_col
+
+
+def find_row_type_col(
+    sheet: openpyxl.worksheet.worksheet.Worksheet,
+    header_row: int,
+    header_start_col: int,
+) -> int | None:
+    return next(
+        (
+            col
+            for col in range(1, header_start_col)
+            if normalize_key(sheet.cell(header_row, col).value) in {"row type", "type"}
+        ),
+        None,
+    )
+
+
+def classify_result_row(row_type: Any, parsed_signal_date: str | None, label: str) -> str:
+    row_type_key = normalize_key(row_type)
+    if row_type_key in {"signal", "signals", "trade", "trades"}:
+        return "signal"
+    if row_type_key in {"summary", "stat", "stats", "statistic", "statistics"}:
+        return "stat"
+    if row_type_key in {"note", "notes"}:
+        return "note"
+    if parsed_signal_date:
+        return "signal"
+    if label.startswith(("Notes", "-", "*", "•")):
+        return "note"
+    return "stat"
+
+
+def find_summary_sheet(workbook: openpyxl.Workbook) -> openpyxl.worksheet.worksheet.Worksheet | None:
+    for sheet in workbook.worksheets:
+        if normalize_key(sheet.title) == "summary":
+            return sheet
+    for sheet in workbook.worksheets:
+        if normalize_key(sheet.title) in {"sumnary", "summry"}:
+            return sheet
+    return None
+
+
+def row_text_cells(row: tuple[Any, ...]) -> list[list[str]]:
+    cells = [str(cell).strip() for cell in row if cell is not None and str(cell).strip()]
+    if not cells:
+        return []
+    if len(cells) == 1:
+        lines = [line.strip() for line in cells[0].splitlines() if line.strip()]
+        return [[line] for line in lines]
+    return [cells]
+
+
+def starts_structured_summary_item(line: str) -> bool:
+    return bool(re.match(r"^[A-Z0-9][^:]{0,42}:\s+", line))
+
+
+def should_merge_summary_line(previous: str, current: str) -> bool:
+    if not previous or not current:
+        return False
+    if starts_structured_summary_item(current):
+        return False
+    if previous.endswith((",", "—", "-", "–")):
+        return True
+    if previous.endswith((".", "!", "?", ")")):
+        return False
+    if current[0].islower():
+        return True
+    return True
+
+
+def merge_wrapped_summary_lines(lines: list[str]) -> list[str]:
+    merged: list[str] = []
+    for line in lines:
+        clean = re.sub(r"\s+", " ", clean_summary_line(line)).strip()
+        if not clean:
+            continue
+        if merged and should_merge_summary_line(merged[-1], clean):
+            merged[-1] = f"{merged[-1]} {clean}"
+        else:
+            merged.append(clean)
+    return merged
+
+
 def read_summary_text(workbook: openpyxl.Workbook) -> tuple[str, list[str], dict[str, list[str]]]:
-    if "Summary" not in workbook.sheetnames:
+    sheet = find_summary_sheet(workbook)
+    if sheet is None:
         return "Backtest Visualizer", [], {}
-    sheet = workbook["Summary"]
     summary_rows: list[list[str]] = []
     text: list[str] = []
     for row in sheet.iter_rows(values_only=True):
-        cells = [str(cell).strip() for cell in row if cell is not None and str(cell).strip()]
-        if cells:
+        for cells in row_text_cells(row):
             summary_rows.append(cells)
             text.extend(cells)
     title = text[0] if text else "Backtest Visualizer"
@@ -409,9 +535,10 @@ def read_summary_text(workbook: openpyxl.Workbook) -> tuple[str, list[str], dict
             if cleaned:
                 sections.setdefault(current_section, []).append(cleaned)
             continue
-        current_section = line.strip()
+        current_section = line.strip().rstrip(":")
         if current_section:
             sections.setdefault(current_section, [])
+    sections = {name: merge_wrapped_summary_lines(lines) for name, lines in sections.items()}
     return title, text, sections
 
 
@@ -442,10 +569,9 @@ def read_results() -> dict[str, Any]:
     workbook = openpyxl.load_workbook(RESULTS_XLSX, data_only=True, read_only=False)
     title, summary_text, summary_sections = read_summary_text(workbook)
     profile_asset_name = extract_profile_asset_name(workbook)
-    sheet, header_row, header_start_col = find_results_table(workbook)
-    previous_header = sheet.cell(header_row, header_start_col - 1).value if header_start_col > 1 else None
-    if previous_header is not None and str(previous_header).strip():
-        header_start_col -= 1
+    sheet, header_row, signal_date_col = find_results_table(workbook)
+    header_start_col = choose_results_start_col(sheet, header_row, signal_date_col)
+    row_type_col = find_row_type_col(sheet, header_row, header_start_col)
 
     header_cols = [
         col
@@ -465,6 +591,14 @@ def read_results() -> dict[str, Any]:
         signal_date_idx = headers.index("Signal Date")
     except ValueError as exc:
         raise ValueError("Could not find a 'Signal Date' column in the Backtest Results table.") from exc
+    label_idx = next(
+        (
+            idx
+            for idx, header in enumerate(headers)
+            if normalize_key(header) in {"label", "row label", "metric", "stat", "statistic"}
+        ),
+        0,
+    )
 
     table_rows: list[dict[str, Any]] = []
     signal_rows: list[dict[str, Any]] = []
@@ -478,28 +612,31 @@ def read_results() -> dict[str, Any]:
 
         row_values = [serialize_cell(value) for value in values]
         parsed_signal_date = parse_date(values[signal_date_idx])
+        label_text = "" if values[label_idx] is None else str(values[label_idx]).strip()
         first_text = "" if values[0] is None else str(values[0]).strip()
-        canonical_label = canonical_stat_label(first_text)
-        kind = "signal" if parsed_signal_date else "note" if first_text.startswith(("Notes", "-", "*", "•")) else "stat"
+        row_label = label_text or first_text
+        row_type = sheet.cell(row_num, row_type_col).value if row_type_col else None
+        canonical_label = canonical_stat_label(row_label)
+        kind = classify_result_row(row_type, parsed_signal_date, row_label)
         if canonical_label:
-            row_values[0] = canonical_label
+            row_values[label_idx] = canonical_label
 
-        table_rows.append({"kind": kind, "label": canonical_label or first_text, "values": row_values})
+        table_rows.append({"kind": kind, "label": canonical_label or row_label, "values": row_values})
 
-        if parsed_signal_date:
+        if kind == "signal" and parsed_signal_date:
             row_map = {
                 headers[idx]: parsed_signal_date if idx == signal_date_idx else serialize_cell(values[idx])
                 for idx in range(len(headers))
             }
             signal_rows.append({"date": parsed_signal_date, "values": row_map})
-        elif kind == "stat" and first_text:
-            stats_key = canonical_label or first_text
+        elif kind == "stat" and row_label:
+            stats_key = canonical_label or row_label
             stats_rows[stats_key] = {
-                headers[idx]: serialize_cell(values[idx]) if idx > 0 else stats_key
+                headers[idx]: stats_key if idx == label_idx else serialize_cell(values[idx])
                 for idx in range(len(headers))
             }
-        elif first_text:
-            notes.append(first_text)
+        elif row_label:
+            notes.append(row_label)
 
     horizons = [header for header in headers[1:] if header in TRADING_DAY_HORIZONS]
 
@@ -751,30 +888,83 @@ def generate_description(source: dict[str, Any], signals: list[dict[str, Any]], 
     return " ".join(parts)
 
 
-def generate_summary_description(results: dict[str, Any]) -> str | None:
+def dedupe_lines(lines: list[str]) -> list[str]:
+    seen = set()
+    clean_lines = []
+    for line in lines:
+        clean = re.sub(r"\s+", " ", clean_summary_line(line)).strip()
+        if not clean:
+            continue
+        key = normalize_key(clean)
+        if key in seen:
+            continue
+        seen.add(key)
+        clean_lines.append(clean)
+    return clean_lines
+
+
+def collect_section_lines(
+    sections: dict[str, list[str]],
+    names: tuple[str, ...],
+    limit_per_section: int | None = None,
+    fuzzy: bool = True,
+) -> list[str]:
+    lines = []
+    for name in names:
+        section_lines = get_summary_section(sections, name, fuzzy=fuzzy)
+        if limit_per_section is not None:
+            section_lines = section_lines[:limit_per_section]
+        lines.extend(section_lines)
+    return dedupe_lines(lines)
+
+
+def generate_summary_insights(results: dict[str, Any]) -> list[str]:
     sections = results.get("summarySections") or {}
-    signal_count = get_summary_section(sections, "Signal count")
-    key_findings = get_summary_section(sections, "Key findings")
-    significance = get_summary_section(sections, "Statistical significance")
 
     parts = []
-    if signal_count:
-        parts.append(signal_count[0])
-    parts.extend(key_findings[:4])
-    if significance:
-        parts.append(significance[0])
-    if not parts:
-        return None
-    return " ".join(parts)
+    parts.extend(collect_section_lines(sections, ("Bottom line", "Takeaway"), 1))
+    parts.extend(
+        collect_section_lines(
+            sections,
+            ("Key findings", "Findings", "Headline trends", "Trends & Insights", "Results"),
+            4,
+        )
+    )
+    parts.extend(collect_section_lines(sections, ("Performance summary",), 5))
+    parts.extend(collect_section_lines(sections, ("Statistical significance",), 2))
+    parts.extend(
+        collect_section_lines(
+            sections,
+            ("Notable individual outcomes", "Significant timeframes / notable observations", "Notable Timeframes"),
+            2,
+        )
+    )
+    return dedupe_lines(parts)[:6]
+
+
+def generate_summary_description(results: dict[str, Any]) -> str | None:
+    insights = generate_summary_insights(results)
+    return " ".join(insights) if insights else None
+
+
+def generate_criteria_details(results: dict[str, Any]) -> list[str]:
+    sections = results.get("summarySections") or {}
+    details = collect_section_lines(
+        sections,
+        ("Trigger criteria", "Trigger criteria plain English", "Methodology"),
+        fuzzy=False,
+    )
+    if not details:
+        details.extend(collect_section_lines(sections, ("Signal trigger", "Trigger"), 1))
+    if details:
+        timing = collect_section_lines(sections, ("Timing Convention",), 1)
+        details.extend(timing)
+    return dedupe_lines(details)
 
 
 def generate_criteria_description(results: dict[str, Any]) -> str | None:
-    sections = results.get("summarySections") or {}
-    for section_name in ("Trigger criteria", "Trigger criteria plain English", "Methodology"):
-        lines = get_summary_section(sections, section_name)
-        if lines:
-            return " ".join(lines)
-    return None
+    details = generate_criteria_details(results)
+    return " ".join(details) if details else None
 
 
 def format_percent(value: float | None) -> str:
@@ -786,7 +976,8 @@ def format_percent(value: float | None) -> str:
 def build_payload() -> dict[str, Any]:
     metadata = read_study_metadata()
     results = read_results()
-    criteria_description = generate_criteria_description(results)
+    criteria_details = generate_criteria_details(results)
+    criteria_description = " ".join(criteria_details) if criteria_details else None
     trigger_name = infer_trigger_name(results, criteria_description)
     source = read_source_data(results.get("profileAssetName"), trigger_name)
     signals = enrich_signals(source, results)
@@ -794,7 +985,8 @@ def build_payload() -> dict[str, Any]:
     distribution = build_distribution(signals, results["horizons"])
     cards = build_cards(signals, results)
     ai_description = generate_description(source, signals, results)
-    summary_description = generate_summary_description(results)
+    summary_insights = generate_summary_insights(results)
+    summary_description = " ".join(summary_insights) if summary_insights else None
 
     payload = {
         "title": metadata.get("title") or results["title"],
@@ -807,6 +999,8 @@ def build_payload() -> dict[str, Any]:
         "generatedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
         "aiDescription": summary_description or ai_description,
         "criteriaDescription": criteria_description or "",
+        "criteriaDetails": criteria_details,
+        "summaryInsights": summary_insights,
         "summaryText": results["summaryText"],
         "summarySections": results.get("summarySections") or {},
         "horizons": results["horizons"],
