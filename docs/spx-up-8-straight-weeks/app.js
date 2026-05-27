@@ -200,6 +200,30 @@ function textNode(text) {
   return document.createTextNode(text);
 }
 
+function normalizeTextItems(items, fallback) {
+  const clean = Array.isArray(items)
+    ? items.map((item) => String(item || "").replace(/\s+/g, " ").trim()).filter(Boolean)
+    : [];
+  if (clean.length) return clean;
+  const fallbackText = String(fallback || "").replace(/\s+/g, " ").trim();
+  return fallbackText ? [fallbackText] : [];
+}
+
+function renderSummaryCardText(target, fallback, items = []) {
+  const clean = normalizeTextItems(items, fallback);
+  if (!clean.length) {
+    target.replaceChildren();
+    return;
+  }
+  if (clean.length === 1) {
+    target.replaceChildren(el("p", {}, clean[0]));
+    return;
+  }
+  const list = el("ul", { class: "summary-card-list" });
+  clean.forEach((item) => list.appendChild(el("li", {}, item)));
+  target.replaceChildren(list);
+}
+
 function addText(root, text, attrs) {
   root.appendChild(svg("text", attrs, [textNode(text)]));
 }
@@ -703,7 +727,7 @@ function criterionSentence() {
 function renderParameterDescription() {
   const target = document.getElementById("parameter-description");
   if (data.criteriaDescription) {
-    target.textContent = data.criteriaDescription;
+    renderSummaryCardText(target, data.criteriaDescription, data.criteriaDetails);
     return;
   }
   const cooldown = extractCooldown();
@@ -711,7 +735,10 @@ function renderParameterDescription() {
   const cooldownText = cooldown
     ? ` After a trigger, the study waits ${cooldown} trading days before counting another signal.`
     : "";
-  target.textContent = `${criterionSentence()}${cooldownText} The sample includes n=${data.signals.length} signals from ${fmtDate(data.dateRange.start)} to ${fmtDate(data.dateRange.end)}; ${completed} have full 12-month forward windows. Forward returns are compared with all trading days in the dataset.`;
+  renderSummaryCardText(
+    target,
+    `${criterionSentence()}${cooldownText} The sample includes n=${data.signals.length} signals from ${fmtDate(data.dateRange.start)} to ${fmtDate(data.dateRange.end)}; ${completed} have full 12-month forward windows. Forward returns are compared with all trading days in the dataset.`
+  );
 }
 
 function setupBackLinks() {
@@ -722,7 +749,7 @@ function setupBackLinks() {
 
 function renderHeader() {
   document.getElementById("study-title").textContent = data.title;
-  document.getElementById("ai-description").textContent = data.aiDescription;
+  renderSummaryCardText(document.getElementById("ai-description"), data.aiDescription, data.summaryInsights);
   document.getElementById("trigger-title").textContent = `${data.assetName} with signal triggers`;
 
   const meta = document.getElementById("study-meta");
