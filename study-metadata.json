@@ -1,5 +1,5 @@
 {
-  "title": "S&P 500 Goes From 6% Below its 50DMA to 8% Above It",
-  "description": "Forward return profile when SPX closes 8% above it 50DMA within 32 days of being 6% below it.",
-  "slug": "spx-6%-below-50MA-8%-above"
+  "title": "Nasdaq-100 Rolling YoY% Crosses > +1 Std",
+  "description": "Forward return profile when NDX YoY returns exceeds +1 Std for the first time in a year.",
+  "slug": "ndx-yoy-crosses-above-p1-std"
 }
