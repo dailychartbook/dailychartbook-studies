@@ -188,6 +188,13 @@ h2 {
   line-height: 1.48;
 }
 
+.ai-summary-body,
+.ai-summary-body p,
+.ai-summary-body .summary-card-list {
+  font-size: var(--ai-summary-font-size, 0.9rem);
+  line-height: 1.42;
+}
+
 .summary-card-list li::marker {
   color: var(--green);
 }

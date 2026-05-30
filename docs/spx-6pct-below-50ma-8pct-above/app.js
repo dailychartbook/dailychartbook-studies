@@ -224,6 +224,15 @@ function renderSummaryCardText(target, fallback, items = []) {
   target.replaceChildren(list);
 }
 
+function renderAiSummary(target, fallback, items = []) {
+  const clean = normalizeTextItems(items, fallback);
+  const textLength = clean.join(" ").length;
+  const compactRatio = Math.min(1, Math.max(0, (textLength - 650) / 850));
+  const fontSize = 0.94 - compactRatio * 0.16;
+  target.style.setProperty("--ai-summary-font-size", `${fontSize.toFixed(3)}rem`);
+  renderSummaryCardText(target, "", clean);
+}
+
 function addText(root, text, attrs) {
   root.appendChild(svg("text", attrs, [textNode(text)]));
 }
@@ -749,7 +758,7 @@ function setupBackLinks() {
 
 function renderHeader() {
   document.getElementById("study-title").textContent = data.title;
-  renderSummaryCardText(document.getElementById("ai-description"), data.aiDescription, data.summaryInsights);
+  renderAiSummary(document.getElementById("ai-description"), data.aiDescription, data.summaryInsights);
   document.getElementById("trigger-title").textContent = `${data.assetName} with signal triggers`;
 
   const meta = document.getElementById("study-meta");
