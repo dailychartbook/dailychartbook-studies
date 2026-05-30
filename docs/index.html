@@ -133,11 +133,47 @@
         line-height: 1.48;
       }
 
+      .landing-controls {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 34px;
+      }
+
+      .sort-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .sort-select {
+        min-height: 34px;
+        padding: 6px 28px 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.76rem;
+        font-weight: 750;
+        text-transform: none;
+      }
+
+      .sort-select:focus-visible {
+        border-color: var(--accent);
+        outline: 2px solid rgba(38, 152, 77, 0.16);
+        outline-offset: 2px;
+      }
+
       .studies-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
         gap: 18px;
-        margin-top: 34px;
+        margin-top: 14px;
       }
 
       .study-card {
@@ -180,9 +216,14 @@
       }
 
       .study-published {
-        margin: 5px 0 14px;
+        flex: none;
+        margin: 0;
+        padding: 5px 7px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--soft);
         color: var(--muted);
-        font-size: 0.74rem;
+        font-size: 0.64rem;
         font-weight: 700;
         letter-spacing: 0;
         text-transform: uppercase;
@@ -223,8 +264,15 @@
         line-height: 1.2;
       }
 
-      .study-link {
+      .study-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
         margin: 26px 24px 24px;
+      }
+
+      .study-link {
         color: var(--accent);
         font-weight: 820;
         text-decoration: none;
@@ -339,7 +387,7 @@
           padding: 20px 20px 0;
         }
 
-        .study-link {
+        .study-card-footer {
           margin: 22px 20px 20px;
         }
       }
@@ -360,8 +408,17 @@
           <h1>Backtests: Visualized</h1>
           <p class="subtitle">Interactive market studies | No narratives, just numbers</p>
         </section>
+        <div class="landing-controls">
+          <label class="sort-control">
+            Sort by
+            <select class="sort-select" data-study-sort>
+              <option value="signal">Signal date</option>
+              <option value="published">Published date</option>
+            </select>
+          </label>
+        </div>
         <section class="studies-grid" aria-label="Backtest studies">
-          <article class="study-card">
+          <article class="study-card" data-signal-date="2026-05-22" data-published-date="2026-05-22" data-title="s&amp;p 500 rises 8 straight weeks">
           <a class="study-thumbnail" href="./spx-up-8-straight-weeks/" aria-label="Open S&amp;P 500 Rises 8 Straight Weeks">
             <img src="./spx-up-8-straight-weeks/trigger-map-thumbnail.svg" alt="Signal map thumbnail for S&amp;P 500 Rises 8 Straight Weeks">
           </a>
@@ -371,9 +428,12 @@
             <p class="study-key-result">12M avg +10.1% | 12M hit rate 89% | n=20</p>
             <p class="study-description">Forward return profile when SPX closes higher for at least 8 consecutive weeks.</p>
           </div>
-          <a class="study-link" href="./spx-up-8-straight-weeks/">Open study &rarr;</a>
+          <div class="study-card-footer">
+            <a class="study-link" href="./spx-up-8-straight-weeks/">Open study &rarr;</a>
+            <p class="study-published">Published May 22, 2026</p>
+          </div>
         </article>
-        <article class="study-card">
+        <article class="study-card" data-signal-date="2026-05-18" data-published-date="2026-05-20" data-title="rspd/rsps drawdown &gt; 15% while s&amp;p 500 &lt; 5%">
           <a class="study-thumbnail" href="./rspd-rsps-down-15-spx-down-5/" aria-label="Open RSPD/RSPS Drawdown &gt; 15% While S&amp;P 500 &lt; 5%">
             <img src="./rspd-rsps-down-15-spx-down-5/trigger-map-thumbnail.svg" alt="Signal map thumbnail for RSPD/RSPS Drawdown &gt; 15% While S&amp;P 500 &lt; 5%">
           </a>
@@ -383,9 +443,12 @@
             <p class="study-key-result">12M avg +7.7% | 12M hit rate 75% | n=13</p>
             <p class="study-description">Forward return profile when SPX is near highs while RSPD/RSPS is in a 15% drawdown.</p>
           </div>
-          <a class="study-link" href="./rspd-rsps-down-15-spx-down-5/">Open study &rarr;</a>
+          <div class="study-card-footer">
+            <a class="study-link" href="./rspd-rsps-down-15-spx-down-5/">Open study &rarr;</a>
+            <p class="study-published">Published May 20, 2026</p>
+          </div>
         </article>
-        <article class="study-card">
+        <article class="study-card" data-signal-date="2026-05-15" data-published-date="2026-05-18" data-title="s&amp;p 500 overbought streak">
           <a class="study-thumbnail" href="./spx-8-straight-overbought-rsi/" aria-label="Open S&amp;P 500 Overbought Streak">
             <img src="./spx-8-straight-overbought-rsi/trigger-map-thumbnail.svg" alt="Signal map thumbnail for S&amp;P 500 Overbought Streak">
           </a>
@@ -395,9 +458,12 @@
             <p class="study-key-result">12M avg +10.4% | 12M hit rate 74% | n=44</p>
             <p class="study-description">Forward return profile when SPX is overbought for an extended period.</p>
           </div>
-          <a class="study-link" href="./spx-8-straight-overbought-rsi/">Open study &rarr;</a>
+          <div class="study-card-footer">
+            <a class="study-link" href="./spx-8-straight-overbought-rsi/">Open study &rarr;</a>
+            <p class="study-published">Published May 18, 2026</p>
+          </div>
         </article>
-        <article class="study-card">
+        <article class="study-card" data-signal-date="2026-05-14" data-published-date="2026-05-27" data-title="s&amp;p 500 goes from 6% below its 50dma to 8% above it">
           <a class="study-thumbnail" href="./spx-6pct-below-50ma-8pct-above/" aria-label="Open S&amp;P 500 Goes From 6% Below its 50DMA to 8% Above It">
             <img src="./spx-6pct-below-50ma-8pct-above/trigger-map-thumbnail.svg" alt="Signal map thumbnail for S&amp;P 500 Goes From 6% Below its 50DMA to 8% Above It">
           </a>
@@ -407,9 +473,12 @@
             <p class="study-key-result">12M avg +20.1% | 12M hit rate 89% | n=10</p>
             <p class="study-description">Forward return profile when SPX closes 8% above it 50DMA within 32 days of being 6% below it.</p>
           </div>
-          <a class="study-link" href="./spx-6pct-below-50ma-8pct-above/">Open study &rarr;</a>
+          <div class="study-card-footer">
+            <a class="study-link" href="./spx-6pct-below-50ma-8pct-above/">Open study &rarr;</a>
+            <p class="study-published">Published May 27, 2026</p>
+          </div>
         </article>
-        <article class="study-card">
+        <article class="study-card" data-signal-date="2026-05-08" data-published-date="2026-05-19" data-title="ndx stretched above its 50-day moving average">
           <a class="study-thumbnail" href="./ndx-14pct-above-50dma/" aria-label="Open NDX Stretched Above Its 50-Day Moving Average">
             <img src="./ndx-14pct-above-50dma/trigger-map-thumbnail.svg" alt="Signal map thumbnail for NDX Stretched Above Its 50-Day Moving Average">
           </a>
@@ -419,9 +488,12 @@
             <p class="study-key-result">12M avg +16.6% | 12M hit rate 73% | n=16</p>
             <p class="study-description">Forward return profile when NDX trades 14% above its 50-day moving average.</p>
           </div>
-          <a class="study-link" href="./ndx-14pct-above-50dma/">Open study &rarr;</a>
+          <div class="study-card-footer">
+            <a class="study-link" href="./ndx-14pct-above-50dma/">Open study &rarr;</a>
+            <p class="study-published">Published May 19, 2026</p>
+          </div>
         </article>
-        <article class="study-card">
+        <article class="study-card" data-signal-date="2026-04-10" data-published-date="2026-05-29" data-title="nasdaq-100 rolling yoy% crosses &gt; +1 std">
           <a class="study-thumbnail" href="./ndx-yoy-crosses-above-p1-std/" aria-label="Open Nasdaq-100 Rolling YoY% Crosses &gt; +1 Std">
             <img src="./ndx-yoy-crosses-above-p1-std/trigger-map-thumbnail.svg" alt="Signal map thumbnail for Nasdaq-100 Rolling YoY% Crosses &gt; +1 Std">
           </a>
@@ -431,7 +503,10 @@
             <p class="study-key-result">12M avg +16.2% | 12M hit rate 86% | n=8</p>
             <p class="study-description">Forward return profile when NDX YoY returns exceeds +1 Std for the first time in a year.</p>
           </div>
-          <a class="study-link" href="./ndx-yoy-crosses-above-p1-std/">Open study &rarr;</a>
+          <div class="study-card-footer">
+            <a class="study-link" href="./ndx-yoy-crosses-above-p1-std/">Open study &rarr;</a>
+            <p class="study-published">Published May 29, 2026</p>
+          </div>
         </article>
         </section>
       </main>
@@ -447,6 +522,23 @@
       data-report-email="dailychartbook@pm.me"
       data-report-subject="Daily Chartbook Studies bug report"
     >Report bug</button>
+    <script>
+      const sortSelect = document.querySelector("[data-study-sort]");
+      const studiesGrid = document.querySelector(".studies-grid");
+      const sortStudies = () => {
+        if (!sortSelect || !studiesGrid) return;
+        const dateAttribute = sortSelect.value === "published" ? "publishedDate" : "signalDate";
+        const cards = [...studiesGrid.querySelectorAll(".study-card")];
+        cards.sort((left, right) => {
+          const dateComparison = (right.dataset[dateAttribute] || "").localeCompare(left.dataset[dateAttribute] || "");
+          if (dateComparison) return dateComparison;
+          return (left.dataset.title || "").localeCompare(right.dataset.title || "");
+        });
+        cards.forEach((card) => studiesGrid.appendChild(card));
+      };
+      sortSelect?.addEventListener("change", sortStudies);
+      sortStudies();
+    </script>
     <script>
       document.querySelectorAll("[data-report-bug-button]").forEach((button) => {
         button.addEventListener("click", () => {

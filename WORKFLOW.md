@@ -18,6 +18,7 @@ Local archived inputs live under `Archives/`, which is also ignored by Git. Do n
 - `title`: public dashboard and landing-page title
 - `description`: short landing-page/card description
 - `slug`: exported study folder name inside `docs/`
+- `publishedDate`: publication date shown on the landing-page card, preferably in `YYYY-MM-DD` format
 
 If a field is blank or missing, the scripts fall back to workbook-generated values.
 

@@ -79,6 +79,26 @@ def bug_report_script() -> str:
     </script>"""
 
 
+def landing_sort_script() -> str:
+    return """<script>
+      const sortSelect = document.querySelector("[data-study-sort]");
+      const studiesGrid = document.querySelector(".studies-grid");
+      const sortStudies = () => {
+        if (!sortSelect || !studiesGrid) return;
+        const dateAttribute = sortSelect.value === "published" ? "publishedDate" : "signalDate";
+        const cards = [...studiesGrid.querySelectorAll(".study-card")];
+        cards.sort((left, right) => {
+          const dateComparison = (right.dataset[dateAttribute] || "").localeCompare(left.dataset[dateAttribute] || "");
+          if (dateComparison) return dateComparison;
+          return (left.dataset.title || "").localeCompare(right.dataset.title || "");
+        });
+        cards.forEach((card) => studiesGrid.appendChild(card));
+      };
+      sortSelect?.addEventListener("change", sortStudies);
+      sortStudies();
+    </script>"""
+
+
 def slugify(text: str, fallback: str = "backtest-study") -> str:
     normalized = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     normalized = normalized.lower()
@@ -272,7 +292,7 @@ def read_study_card(study: Path) -> dict:
     else:
         date_label = end or start or ""
     published = payload.get("publishedDate") or payload.get("published")
-    published_label = f"Published: {format_display_date(published)}" if published else ""
+    published_label = f"Published {format_display_date(published)}" if published else ""
 
     return {
         "href": f"./{study.name}/",
@@ -282,6 +302,7 @@ def read_study_card(study: Path) -> dict:
         "publishedDate": published_label,
         "keyResult": study_key_result(payload),
         "sortDate": latest_signal or date_range.get("end") or date_range.get("start") or "",
+        "sortPublishedDate": published or "",
         "thumbnail": f"./{study.name}/{THUMBNAIL_FILE}" if (study / THUMBNAIL_FILE).exists() else "",
     }
 
@@ -350,18 +371,19 @@ def build_landing_page(studies: list[Path]) -> str:
             if card["thumbnail"]
             else ""
         )
-        meta_lines = "\n            ".join(part for part in (date, published_date) if part)
-        if meta_lines:
-            meta_lines = f"{meta_lines}\n            "
         cards.append(
-            f"""<article class="study-card">
+            f"""<article class="study-card" data-signal-date="{escape(card["sortDate"], quote=True)}" data-published-date="{escape(card["sortPublishedDate"], quote=True)}" data-title="{escape(card["title"].lower(), quote=True)}">
           {thumbnail}
           <div class="study-card-body">
-            {meta_lines}<h2><a class="study-title-link" href="{escape(card["href"])}">{escape(card["title"])}</a></h2>
+            {date}
+            <h2><a class="study-title-link" href="{escape(card["href"])}">{escape(card["title"])}</a></h2>
             {key_result}
             <p class="study-description">{escape(card["description"])}</p>
           </div>
-          <a class="study-link" href="{escape(card["href"])}">Open study &rarr;</a>
+          <div class="study-card-footer">
+            <a class="study-link" href="{escape(card["href"])}">Open study &rarr;</a>
+            {published_date}
+          </div>
         </article>"""
         )
 
@@ -495,11 +517,47 @@ def build_landing_page(studies: list[Path]) -> str:
         line-height: 1.48;
       }}
 
+      .landing-controls {{
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 34px;
+      }}
+
+      .sort-control {{
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }}
+
+      .sort-select {{
+        min-height: 34px;
+        padding: 6px 28px 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.76rem;
+        font-weight: 750;
+        text-transform: none;
+      }}
+
+      .sort-select:focus-visible {{
+        border-color: var(--accent);
+        outline: 2px solid rgba(38, 152, 77, 0.16);
+        outline-offset: 2px;
+      }}
+
       .studies-grid {{
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
         gap: 18px;
-        margin-top: 34px;
+        margin-top: 14px;
       }}
 
       .study-card {{
@@ -542,9 +600,14 @@ def build_landing_page(studies: list[Path]) -> str:
       }}
 
       .study-published {{
-        margin: 5px 0 14px;
+        flex: none;
+        margin: 0;
+        padding: 5px 7px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--soft);
         color: var(--muted);
-        font-size: 0.74rem;
+        font-size: 0.64rem;
         font-weight: 700;
         letter-spacing: 0;
         text-transform: uppercase;
@@ -585,8 +648,15 @@ def build_landing_page(studies: list[Path]) -> str:
         line-height: 1.2;
       }}
 
-      .study-link {{
+      .study-card-footer {{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
         margin: 26px 24px 24px;
+      }}
+
+      .study-link {{
         color: var(--accent);
         font-weight: 820;
         text-decoration: none;
@@ -701,7 +771,7 @@ def build_landing_page(studies: list[Path]) -> str:
           padding: 20px 20px 0;
         }}
 
-        .study-link {{
+        .study-card-footer {{
           margin: 22px 20px 20px;
         }}
       }}
@@ -722,6 +792,15 @@ def build_landing_page(studies: list[Path]) -> str:
           <h1>Backtests: Visualized</h1>
           <p class="subtitle">Interactive market studies | No narratives, just numbers</p>
         </section>
+        <div class="landing-controls">
+          <label class="sort-control">
+            Sort by
+            <select class="sort-select" data-study-sort>
+              <option value="signal">Signal date</option>
+              <option value="published">Published date</option>
+            </select>
+          </label>
+        </div>
         <section class="studies-grid" aria-label="Backtest studies">
           {items}
         </section>
@@ -738,6 +817,7 @@ def build_landing_page(studies: list[Path]) -> str:
       data-report-email="{escape(BUG_REPORT_EMAIL, quote=True)}"
       data-report-subject="{escape(BUG_REPORT_SUBJECT, quote=True)}"
     >Report bug</button>
+    {landing_sort_script()}
     {bug_report_script()}
   </body>
 </html>

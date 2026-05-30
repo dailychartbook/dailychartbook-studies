@@ -1,5 +1,6 @@
 {
   "title": "Nasdaq-100 Rolling YoY% Crosses > +1 Std",
   "description": "Forward return profile when NDX YoY returns exceeds +1 Std for the first time in a year.",
-  "slug": "ndx-yoy-crosses-above-p1-std"
+  "slug": "ndx-yoy-crosses-above-p1-std",
+  "publishedDate": "2026-05-29"
 }

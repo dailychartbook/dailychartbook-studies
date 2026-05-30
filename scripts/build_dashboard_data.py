@@ -155,6 +155,15 @@ def read_study_metadata() -> dict[str, str]:
         value = raw.get(field)
         if isinstance(value, str) and value.strip():
             metadata[field] = value.strip()
+
+    published_date = raw.get("publishedDate")
+    if published_date not in (None, ""):
+        if not isinstance(published_date, str):
+            raise ValueError(f"{METADATA_JSON.name} publishedDate must be a date string.")
+        parsed_published_date = parse_date(published_date)
+        if not parsed_published_date:
+            raise ValueError(f"{METADATA_JSON.name} publishedDate must be a recognized date.")
+        metadata["publishedDate"] = parsed_published_date
     return metadata
 
 
@@ -992,6 +1001,7 @@ def build_payload() -> dict[str, Any]:
         "title": metadata.get("title") or results["title"],
         "description": metadata.get("description") or ai_description,
         "slug": metadata.get("slug") or "",
+        "publishedDate": metadata.get("publishedDate") or "",
         "assetName": source["assetName"],
         "indicatorName": source["indicatorName"],
         "triggerName": trigger_name or source["indicatorName"],
