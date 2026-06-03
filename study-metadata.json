@@ -1,6 +1,6 @@
 {
-  "title": "Nasdaq-100 Rolling YoY% Crosses > +1 Std",
-  "description": "Forward return profile when NDX YoY returns exceeds +1 Std for the first time in a year.",
-  "slug": "ndx-yoy-crosses-above-p1-std",
-  "publishedDate": "2026-05-29"
+  "title": "S&P 500 Rolling 2-month Change Exceeds 16%",
+  "description": "Forward return profile when SPX rolling 2-month return crosses above 16%.",
+  "slug": "spx-2mo-change-crosses-16",
+  "publishedDate": "2026-06-03"
 }
