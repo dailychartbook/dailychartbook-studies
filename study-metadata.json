@@ -1,6 +1,6 @@
 {
-  "title": "S&P 500 Rolling 2-month Change Exceeds 16%",
-  "description": "Forward return profile when SPX rolling 2-month return crosses above 16%.",
-  "slug": "spx-2mo-change-crosses-16",
-  "publishedDate": "2026-06-03"
+  "title": "SPX RSI Goes From Overbought to < 50 in 3 Days",
+  "description": "Forward return profile when SPX RSI goes from > 70 to < 50 in 3 days or less.",
+  "slug": "spx-rsi-above-70-to-below-50-in-3d",
+  "publishedDate": "2026-06-05"
 }
