@@ -1,6 +1,6 @@
 {
-  "title": "SPX RSI Goes From Overbought to < 50 in 3 Days",
-  "description": "Forward return profile when SPX RSI goes from > 70 to < 50 in 3 days or less.",
-  "slug": "spx-rsi-above-70-to-below-50-in-3d",
-  "publishedDate": "2026-06-05"
+  "title": "Gold Closes < 200SMA After ≥ 500 Days Above It",
+  "description": "Forward return profile when XAUUSD closes below its 200-day moving after having closed above it for at least 500 days.",
+  "slug": "xauusd-below-200sma-after-500d-above",
+  "publishedDate": "2026-06-09"
 }
