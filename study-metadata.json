@@ -1,6 +1,6 @@
 {
-  "title": "Gold Closes < 200SMA After ≥ 500 Days Above It",
-  "description": "Forward return profile when XAUUSD closes below its 200-day moving after having closed above it for at least 500 days.",
-  "slug": "xauusd-below-200sma-after-500d-above",
-  "publishedDate": "2026-06-09"
+  "title": "SPX After DXY Hits a 52-week High",
+  "description": "Forward return profile for S&P 500 when US dollar makes a new 52-week high for the first time in a year.",
+  "slug": "spx-after-dxy-new-52w-high",
+  "publishedDate": "2026-06-18"
 }
