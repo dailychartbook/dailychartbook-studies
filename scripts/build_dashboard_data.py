@@ -227,6 +227,19 @@ def canonical_stat_label(value: Any) -> str | None:
     return STAT_LABEL_ALIASES.get(key)
 
 
+def find_canonical_stat_label(values: list[Any]) -> tuple[int, str, str] | None:
+    for idx, value in enumerate(values):
+        if value is None:
+            continue
+        text = str(value).strip()
+        if not text:
+            continue
+        canonical_label = canonical_stat_label(text)
+        if canonical_label:
+            return idx, canonical_label, text
+    return None
+
+
 def parse_date(value: Any) -> str | None:
     if isinstance(value, datetime):
         return value.date().isoformat()
@@ -639,12 +652,18 @@ def read_results() -> dict[str, Any]:
         parsed_signal_date = parse_date(values[signal_date_idx])
         label_text = "" if values[label_idx] is None else str(values[label_idx]).strip()
         first_text = "" if values[0] is None else str(values[0]).strip()
-        row_label = label_text or first_text
+        stat_label_match = find_canonical_stat_label(values)
+        stat_label_idx = stat_label_match[0] if stat_label_match else None
+        detected_canonical_label = stat_label_match[1] if stat_label_match else None
+        detected_label_text = stat_label_match[2] if stat_label_match else ""
+        row_label = label_text or first_text or detected_label_text
         row_type = sheet.cell(row_num, row_type_col).value if row_type_col else None
-        canonical_label = canonical_stat_label(row_label)
+        canonical_label = canonical_stat_label(row_label) or detected_canonical_label
         kind = classify_result_row(row_type, parsed_signal_date, row_label)
         if canonical_label:
             row_values[label_idx] = canonical_label
+            if stat_label_idx is not None and stat_label_idx != label_idx:
+                row_values[stat_label_idx] = None
 
         table_rows.append({"kind": kind, "label": canonical_label or row_label, "values": row_values})
 
@@ -654,10 +673,10 @@ def read_results() -> dict[str, Any]:
                 for idx in range(len(headers))
             }
             signal_rows.append({"date": parsed_signal_date, "values": row_map})
-        elif kind == "stat" and row_label:
+        elif kind == "stat" and (row_label or canonical_label):
             stats_key = canonical_label or row_label
             stats_rows[stats_key] = {
-                headers[idx]: stats_key if idx == label_idx else serialize_cell(values[idx])
+                headers[idx]: stats_key if idx == label_idx else row_values[idx]
                 for idx in range(len(headers))
             }
         elif row_label:

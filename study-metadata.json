@@ -1,6 +1,6 @@
 {
-  "title": "SPX After DXY Hits a 52-week High",
-  "description": "Forward return profile for S&P 500 when US dollar makes a new 52-week high for the first time in a year.",
-  "slug": "spx-after-dxy-new-52w-high",
-  "publishedDate": "2026-06-18"
+  "title": "Large Value Rallies 15% in 3 Months",
+  "description": "Forward return profile for VONV when rolling 63-day change exceeds 15%",
+  "slug": "vonv-3mo-change-above-15",
+  "publishedDate": "2026-07-06"
 }
