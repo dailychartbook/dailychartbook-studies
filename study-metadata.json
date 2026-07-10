@@ -1,6 +1,6 @@
 {
-  "title": "Large Value Rallies 15% in 3 Months",
-  "description": "Forward return profile for VONV when rolling 63-day change exceeds 15%",
-  "slug": "vonv-3mo-change-above-15",
-  "publishedDate": "2026-07-06"
+  "title": "SPX After VIX Fresh 120-Session Low < 16",
+  "description": "Forward return profile for S&P 500 when VIX makes a 120-session low for the first time in 30 days and that low is below 16.0",
+  "slug": "spx-vix-120d-low-below16",
+  "publishedDate": "2026-07-10"
 }

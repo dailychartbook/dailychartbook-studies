@@ -502,7 +502,7 @@ def row_text_cells(row: tuple[Any, ...]) -> list[list[str]]:
 
 
 def starts_structured_summary_item(line: str) -> bool:
-    return bool(re.match(r"^[A-Z0-9][^:]{0,42}:\s+", line))
+    return bool(re.match(r"^(?:[A-Z0-9][^:]{0,42}:\s+|\d+[.)]\s+)", line))
 
 
 def should_merge_summary_line(previous: str, current: str) -> bool:
@@ -558,6 +558,16 @@ def read_summary_text(workbook: openpyxl.Workbook) -> tuple[str, list[str], dict
             if current_section:
                 section = sections.setdefault(current_section, [])
                 section.extend(cleaned for value in cells[1:] if (cleaned := clean_summary_line(value)))
+            continue
+        if (
+            current_section
+            and normalize_key(current_section) in {"trigger criteria", "trigger criteria plain english", "methodology"}
+            and line.rstrip().endswith(":")
+            and len(line.split()) >= 7
+        ):
+            cleaned = clean_summary_line(line).rstrip(":").strip()
+            if cleaned:
+                sections.setdefault(current_section, []).append(cleaned)
             continue
         label_match = re.match(r"^([^:]{1,60}):\s*(.+)$", line)
         if label_match:
@@ -970,7 +980,7 @@ def generate_summary_insights(results: dict[str, Any]) -> list[str]:
     parts.extend(
         collect_section_lines(
             sections,
-            ("Key findings", "Findings", "Headline trends", "Trends & Insights", "Results"),
+            ("Key findings", "Findings", "Headline findings", "Headline trends", "Trends & Insights", "Results"),
             4,
         )
     )
@@ -1001,7 +1011,11 @@ def generate_criteria_details(results: dict[str, Any]) -> list[str]:
     if not details:
         details.extend(collect_section_lines(sections, ("Signal trigger", "Trigger"), 1))
     if details:
-        timing = collect_section_lines(sections, ("Timing Convention",), 1)
+        timing = collect_section_lines(
+            sections,
+            ("Timing Convention", "Entry convention", "Entry", "Position"),
+            1,
+        )
         details.extend(timing)
     return dedupe_lines(details)
 

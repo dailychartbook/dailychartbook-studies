@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Forward return profile for S&amp;P 500 when VIX makes a 120-session low for the first time in 30 days and that low is below 16.0">
+    <title>SPX After VIX Fresh 120-Session Low &lt; 16 | Daily Chartbook Studies</title>
+    <link rel="icon" type="image/png" href="/DC_Logo_BnW.png">
+    <link rel="apple-touch-icon" href="/DC_Logo_BnW.png">
+    <link rel="stylesheet" href="styles.css?v=summary-median-export">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DS53FBC30P"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DS53FBC30P');
+    </script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <a class="back-link" href="../">Back to studies</a>
+        <p class="eyebrow">Backtest Visualizer</p>
+        <h1 id="study-title">SPX After VIX Fresh 120-Session Low &lt; 16</h1>
+      </div>
+      <div class="meta-strip" id="study-meta"></div>
+    </header>
+
+    <main class="dashboard-shell">
+      <div class="dashboard-content">
+        <section class="summary-band" id="overview">
+          <div class="summary-intro-grid">
+            <div class="summary-stat-stack" id="summary-feature-cards"></div>
+            <div class="summary-copy parameter-card">
+              <p class="section-kicker">Trigger Criteria</p>
+              <div id="parameter-description" class="summary-card-body"></div>
+            </div>
+            <div class="summary-copy">
+              <p class="section-kicker">AI Summary</p>
+              <div id="ai-description" class="summary-card-body ai-summary-body"></div>
+            </div>
+          </div>
+          <div class="summary-stat-controls">
+            <div>
+              <p class="section-kicker">Forward Returns</p>
+              <h2 id="summary-returns-title">Average returns vs all-day baseline</h2>
+            </div>
+            <div class="segmented-control" role="group" aria-label="Summary return metric">
+              <button class="segmented-button is-active" type="button" data-summary-return-metric="average" aria-pressed="true">Avg</button>
+              <button class="segmented-button" type="button" data-summary-return-metric="median" aria-pressed="false">Median</button>
+            </div>
+          </div>
+          <div class="cards-grid" id="summary-cards"></div>
+        </section>
+
+        <section class="dashboard-grid">
+        <article class="panel panel-wide" id="signal-map">
+          <div class="panel-header">
+            <div class="panel-heading">
+              <p class="section-kicker">Signal Map</p>
+              <h2 id="trigger-title">Asset and trigger series</h2>
+            </div>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-image="#trigger-chart">Copy image</button>
+            </div>
+          </div>
+          <div id="trigger-chart" class="chart chart-tall"></div>
+        </article>
+
+        <article class="panel" id="forward-returns">
+          <div class="panel-header">
+            <div class="panel-heading">
+              <p class="section-kicker">Forward Returns</p>
+              <h2 id="forward-returns-title">Average signal vs baseline</h2>
+            </div>
+            <div class="panel-actions">
+              <div class="segmented-control" role="group" aria-label="Forward return metric">
+                <button class="segmented-button is-active" type="button" data-return-metric="average" aria-pressed="true">Avg</button>
+                <button class="segmented-button" type="button" data-return-metric="median" aria-pressed="false">Median</button>
+              </div>
+              <button class="share-button" type="button" data-copy-image="#forward-returns-chart">Copy image</button>
+            </div>
+          </div>
+          <div id="forward-returns-chart" class="chart chart-medium"></div>
+        </article>
+
+        <article class="panel" id="hit-rates">
+          <div class="panel-header">
+            <div class="panel-heading">
+              <p class="section-kicker">Hit Rates</p>
+              <h2>Signal hit rate vs baseline</h2>
+            </div>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-image="#hit-rate-chart">Copy image</button>
+            </div>
+          </div>
+          <div id="hit-rate-chart" class="chart chart-medium"></div>
+        </article>
+
+        <article class="panel panel-wide" id="signal-performance">
+          <div class="panel-header">
+            <div class="panel-heading">
+              <p class="section-kicker">Signal Performance</p>
+              <h2>Forward path after each trigger</h2>
+            </div>
+            <div class="panel-actions">
+              <div class="segmented-control" role="group" aria-label="Signal performance aggregate">
+                <button class="segmented-button is-active" type="button" data-performance-metric="median" aria-pressed="true">Median</button>
+                <button class="segmented-button" type="button" data-performance-metric="average" aria-pressed="false">Avg</button>
+              </div>
+              <label class="signal-select-label" for="signal-highlight-select">Highlight</label>
+              <select class="signal-select" id="signal-highlight-select" aria-label="Highlight a signal path">
+                <option value="">Median signal</option>
+              </select>
+              <button class="share-button" type="button" data-copy-image="#signal-performance-chart">Copy image</button>
+            </div>
+          </div>
+          <div id="signal-performance-chart" class="chart chart-large"></div>
+        </article>
+
+        <article class="panel panel-wide" id="distribution">
+          <div class="panel-header">
+            <div class="panel-heading">
+              <p class="section-kicker">Distribution</p>
+              <h2>Return distribution by horizon</h2>
+            </div>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-image="#distribution-chart">Copy image</button>
+              <button class="help-button" type="button" data-help="distribution" aria-label="How to read the distribution chart">?</button>
+            </div>
+          </div>
+          <div id="distribution-chart" class="chart chart-large"></div>
+        </article>
+
+        <article class="panel panel-wide" id="study-summary">
+          <div class="panel-header">
+            <div class="panel-heading">
+              <p class="section-kicker">Study Summary</p>
+              <h2>Signal summary vs all-dataset baseline</h2>
+            </div>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-table-image="#summary-matrix">Copy image</button>
+              <button class="share-button" type="button" data-copy-table="#summary-matrix table">Copy table</button>
+            </div>
+          </div>
+          <div id="summary-matrix" class="summary-matrix-wrap"></div>
+        </article>
+
+        <article class="panel panel-wide" id="results-table-section">
+          <div class="panel-header">
+            <div class="panel-heading">
+              <p class="section-kicker">Results Table</p>
+              <h2>Backtest results</h2>
+            </div>
+            <div class="panel-actions">
+              <button class="share-button" type="button" data-copy-table-image="#results-table">Copy image</button>
+              <button class="share-button" type="button" data-copy-table="#results-table">Copy table</button>
+              <button class="help-button" type="button" data-help="results-table" aria-label="How to read the results table formatting">?</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="results-table"></table>
+          </div>
+          </article>
+        </section>
+      </div>
+
+      <aside class="toc-panel" aria-label="Dashboard sections">
+        <p class="toc-kicker">Study contents</p>
+        <nav class="toc-nav">
+          <a href="#overview">Overview</a>
+          <a href="#signal-map">Signal Map</a>
+          <a href="#forward-returns">Forward Returns</a>
+          <a href="#hit-rates">Hit Rates</a>
+          <a href="#signal-performance">Signal Performance</a>
+          <a href="#distribution">Distribution</a>
+          <a href="#study-summary">Study Summary</a>
+          <a href="#results-table-section">Results Table</a>
+        </nav>
+      </aside>
+    </main>
+
+    <footer class="page-footer">
+      <a class="back-link" href="../">Back to studies</a>
+      <p class="disclaimer">
+        <strong>Disclaimer:</strong> Daily Chartbook Studies are for informational and educational purposes only and are not investment advice or a recommendation to buy or sell any security, strategy, or financial instrument. Past performance is not indicative of future results. Backtested results are hypothetical, assumption-dependent, and may not reflect trading costs, taxes, slippage, liquidity, or execution constraints. Data and calculations may contain errors or omissions. Readers should conduct their own research and consult a qualified adviser before making investment decisions.
+      </p>
+    </footer>
+
+    <button
+      class="report-bug-button"
+      type="button"
+      data-report-bug-button
+      data-report-email="dailychartbook@pm.me"
+      data-report-subject="Daily Chartbook Studies bug report"
+    >Report bug</button>
+
+    <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+
+    <script>
+      const cacheKey = Date.now().toString();
+      const loadScript = (src) =>
+        new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = `${src}?v=${cacheKey}`;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+
+      loadScript("dashboard-data.js").then(() => loadScript("app.js"));
+    </script>
+  </body>
+</html>
