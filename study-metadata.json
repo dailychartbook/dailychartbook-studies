@@ -1,6 +1,6 @@
 {
-  "title": "SPX After VIX Fresh 120-Session Low < 16",
-  "description": "Forward return profile for S&P 500 when VIX makes a 120-session low for the first time in 30 days and that low is below 16.0",
-  "slug": "spx-vix-120d-low-below16",
-  "publishedDate": "2026-07-10"
+  "title": "SPX 70-Day Streak RSI > 40 + 4% Drawdown",
+  "description": "Forward return profile for S&P 500 when RSI stays above 40 for consecutive days and the index experiences a 4% or greater in-window drawdown",
+  "slug": "spx-70d-rsi-streak-plus-drawdown",
+  "publishedDate": "2026-07-14"
 }
