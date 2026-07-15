@@ -1,6 +1,6 @@
 {
-  "title": "SPX 70-Day Streak RSI > 40 + 4% Drawdown",
-  "description": "Forward return profile for S&P 500 when RSI stays above 40 for consecutive days and the index experiences a 4% or greater in-window drawdown",
-  "slug": "spx-70d-rsi-streak-plus-drawdown",
-  "publishedDate": "2026-07-14"
+  "title": "SPX 200DMA Rises for 300 Consecutive Days",
+  "description": "Forward return profile for S&P 500 when its 200-day moving average rises for 300 consecutive days (once per uptrend)",
+  "slug": "spx-200dma-uptrend-300d-streak",
+  "publishedDate": "2026-07-15"
 }
