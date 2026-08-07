@@ -1,6 +1,6 @@
 {
-  "title": "SPX 200DMA Rises for 300 Consecutive Days",
-  "description": "Forward return profile for S&P 500 when its 200-day moving average rises for 300 consecutive days (once per uptrend)",
-  "slug": "spx-200dma-uptrend-300d-streak",
-  "publishedDate": "2026-07-15"
+  "title": "SPX ≥ 12% Through First 150 Days of Year",
+  "description": "Forward return profile for S&P 500 when it advances at least 12% through the first 150 sessions of the year",
+  "slug": "spx-up-12%-through-first-150d",
+  "publishedDate": "2026-08-07"
 }
