@@ -192,6 +192,32 @@ def normalize_key(value: Any) -> str:
     return re.sub(r"\s+", " ", text)
 
 
+def resolve_horizon_alias(key: str) -> str | None:
+    return HORIZON_ALIASES.get(key) or HORIZON_ALIASES.get(key.replace(" ", ""))
+
+
+def canonical_horizon_header(text: str, key: str) -> str | None:
+    horizon = resolve_horizon_alias(key)
+    if horizon:
+        return horizon
+
+    match = re.fullmatch(
+        r"(?P<label>.+?)\s*(?P<open>[\(\[])\s*(?P<days>\d+)\s*"
+        r"(?:d|days?|trading\s+days?)\s*(?P<close>[\)\]])\s*",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    if (match.group("open"), match.group("close")) not in {("(", ")"), ("[", "]")}:
+        return None
+
+    horizon = resolve_horizon_alias(normalize_key(match.group("label")))
+    if horizon and int(match.group("days")) == TRADING_DAY_HORIZONS[horizon]:
+        return horizon
+    return None
+
+
 def normalize_header(value: Any) -> str:
     text = "" if value is None else str(value).strip()
     key = normalize_key(text)
@@ -199,8 +225,9 @@ def normalize_header(value: Any) -> str:
         return ""
     if key == "signal date":
         return "Signal Date"
-    if key in HORIZON_ALIASES:
-        return HORIZON_ALIASES[key]
+    horizon = canonical_horizon_header(text, key)
+    if horizon:
+        return horizon
     if "max" in key and ("dd" in key or "drawdown" in key):
         if "12" in key or "1 y" in key or "1 year" in key:
             return "12M MaxDD"
@@ -419,6 +446,7 @@ def read_source_data(preferred_asset_name: str | None = None, preferred_trigger_
 
 
 def find_results_table(workbook: openpyxl.Workbook) -> tuple[openpyxl.worksheet.worksheet.Worksheet, int, int]:
+    signal_date_rows: list[tuple[str, int, list[str]]] = []
     for sheet in workbook.worksheets:
         for row_idx in range(1, sheet.max_row + 1):
             row = [sheet.cell(row_idx, col).value for col in range(1, sheet.max_column + 1)]
@@ -429,6 +457,16 @@ def find_results_table(workbook: openpyxl.Workbook) -> tuple[openpyxl.worksheet.
                 horizon_count = sum(1 for header in headers if header in TRADING_DAY_HORIZONS)
                 if horizon_count >= 2:
                     return sheet, row_idx, col_idx
+                signal_date_rows.append((sheet.title, row_idx, [header for header in headers if header]))
+    if signal_date_rows:
+        sheet_name, row_idx, headers = signal_date_rows[0]
+        received = ", ".join(headers) if headers else "no other headers"
+        raise ValueError(
+            f"Found a 'Signal Date' header on sheet '{sheet_name}' row {row_idx}, but fewer than two "
+            "recognized forward-return horizon headers were present on that row. Expected labels such as "
+            "'1W', '2W', and '1M', or descriptive equivalents such as '1-Week (5d)'. "
+            f"Received: {received}."
+        )
     raise ValueError("Could not find a sheet with a 'Signal Date' header.")
 
 
