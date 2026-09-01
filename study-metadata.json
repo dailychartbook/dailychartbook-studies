@@ -1,6 +1,6 @@
 {
-  "title": "SPX ≥ 12% Through First 150 Days of Year",
-  "description": "Forward return profile for S&P 500 when it advances at least 12% through the first 150 sessions of the year",
-  "slug": "spx-up-12%-through-first-150d",
-  "publishedDate": "2026-08-07"
+  "title": "AAII Bulls <50% for 485 Consecutive Trading Sessions",
+  "description": "Forward return profile for S&P 500 after bullish responses to AAII Sentiment Survey are below 50% for 485 consecutive sessions",
+  "slug": "spx-aaii-bulls-below50-485d-streak",
+  "publishedDate": "2026-09-01"
 }
