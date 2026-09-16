@@ -1,6 +1,6 @@
 {
-  "title": "AAII Bulls <50% for 485 Consecutive Trading Sessions",
-  "description": "Forward return profile for S&P 500 after bullish responses to AAII Sentiment Survey are below 50% for 485 consecutive sessions",
-  "slug": "spx-aaii-bulls-below50-485d-streak",
-  "publishedDate": "2026-09-01"
+  "title": "SOX/SPX Rolling 3-month Change Drops < -20%",
+  "description": "Forward return profile for the rolling 63-day change of the relative ratio of Semis vs. S&P 500 drops below -20%",
+  "slug": "semis-extreme-relative-underperformance",
+  "publishedDate": "2026-09-15"
 }
