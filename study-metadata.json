@@ -1,6 +1,6 @@
 {
-  "title": "SOX After SOX/SPX Rolling 3-month Change Drops < -20%",
-  "description": "Forward return profile for SOX after the rolling 63-day change of the relative ratio of Semis vs. S&P 500 drops below -20%",
-  "slug": "sox-after-semis-extreme-relative-underperformance",
-  "publishedDate": "2026-09-15"
+  "title": "SPX Streak Without 1% Decline Hits 50 Days",
+  "description": "Forward return profile for SPX after it goes 50 consecutive days without a decline of 1%",
+  "slug": "spx-50d-without-1%-decline",
+  "publishedDate": "2026-10-09"
 }
