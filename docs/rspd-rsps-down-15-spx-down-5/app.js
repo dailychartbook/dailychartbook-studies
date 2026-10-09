@@ -401,31 +401,65 @@ async function drawSourceFooter(ctx, canvas, footerTop, footerHeightPx, scale) {
 function exportHeadingForButton(button) {
   const panel = button.closest(".panel");
   return {
-    kicker: panel?.querySelector(".panel-heading .section-kicker")?.textContent.trim() || "",
-    title: panel?.querySelector(".panel-heading h2")?.textContent.trim() || "",
+    title: String(data.title || "Backtest study").trim(),
+    description: panel?.querySelector(".panel-heading h2")?.textContent.trim()
+      || panel?.querySelector(".panel-heading .section-kicker")?.textContent.trim() || "",
   };
 }
 
-function exportHeadingHeight(heading) {
-  return heading?.kicker || heading?.title ? 76 : 0;
+function wrapExportHeadingText(ctx, text, width) {
+  const lines = [];
+  let line = "";
+  String(text || "").trim().split(/\s+/).filter(Boolean).forEach((word) => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(candidate).width > width) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  });
+  if (line) lines.push(line);
+  return lines;
 }
 
-function drawExportHeading(ctx, heading, x, y, width, height) {
-  if (!height) return;
+function exportHeadingLayout(ctx, heading, width) {
   ctx.save();
-  ctx.fillStyle = "#167c62";
-  ctx.font = "800 12px Inter, ui-sans-serif, system-ui, sans-serif";
+  ctx.font = "850 23px Inter, ui-sans-serif, system-ui, sans-serif";
+  const titleLines = wrapExportHeadingText(ctx, heading.title, width);
+  ctx.font = "500 14px Inter, ui-sans-serif, system-ui, sans-serif";
+  const descriptionLines = wrapExportHeadingText(ctx, heading.description, width);
+  ctx.restore();
+  const gap = titleLines.length && descriptionLines.length ? 8 : 0;
+  const height = titleLines.length || descriptionLines.length
+    ? 32 + titleLines.length * 28 + gap + descriptionLines.length * 20 : 0;
+  return { titleLines, descriptionLines, height };
+}
+
+function drawExportHeading(ctx, heading, x, y, width) {
+  if (!heading.height) return;
+  ctx.save();
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  if (heading.kicker) ctx.fillText(heading.kicker.toUpperCase(), x, y + 16, width);
   ctx.fillStyle = "#1d211c";
   ctx.font = "850 23px Inter, ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText(heading.title || heading.kicker, x, y + 36, width);
+  let textY = y + 16;
+  heading.titleLines.forEach((line) => {
+    ctx.fillText(line, x, textY, width);
+    textY += 28;
+  });
+  if (heading.titleLines.length && heading.descriptionLines.length) textY += 8;
+  ctx.fillStyle = "#657063";
+  ctx.font = "500 14px Inter, ui-sans-serif, system-ui, sans-serif";
+  heading.descriptionLines.forEach((line) => {
+    ctx.fillText(line, x, textY, width);
+    textY += 20;
+  });
   ctx.strokeStyle = "#d9ded5";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, y + height - 0.5);
-  ctx.lineTo(x + width, y + height - 0.5);
+  ctx.moveTo(0, y + heading.height - 0.5);
+  ctx.lineTo(x + width, y + heading.height - 0.5);
   ctx.stroke();
   ctx.restore();
 }
@@ -434,7 +468,6 @@ async function svgToPngBlob(svgNode, heading = {}) {
   const { width, height } = parseViewBox(svgNode);
   const scale = 2;
   const footerHeight = 58;
-  const headingHeight = exportHeadingHeight(heading);
   const clone = svgNode.cloneNode(true);
   clone.setAttribute("width", width);
   clone.setAttribute("height", height);
@@ -452,17 +485,19 @@ async function svgToPngBlob(svgNode, heading = {}) {
     const chartImage = await loadImage(url);
     const canvas = document.createElement("canvas");
     canvas.width = Math.ceil(width * scale);
+    const ctx = canvas.getContext("2d");
+    const headingLayout = exportHeadingLayout(ctx, heading, width - 36);
+    const headingHeight = headingLayout.height;
     canvas.height = Math.ceil((headingHeight + height + footerHeight) * scale);
     const chartHeight = Math.ceil(height * scale);
     const chartTop = Math.ceil(headingHeight * scale);
     const footerTop = chartTop + chartHeight;
     const footerHeightPx = footerHeight * scale;
-    const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     ctx.scale(scale, scale);
-    drawExportHeading(ctx, heading, 18, 0, width - 36, headingHeight);
+    drawExportHeading(ctx, headingLayout, 18, 0, width - 36);
     ctx.restore();
     ctx.drawImage(chartImage, 0, chartTop, canvas.width, chartHeight);
 
@@ -580,22 +615,23 @@ async function tableSectionToPngBlob(target, heading = {}) {
   const scale = 2;
   const footerHeight = 58;
   const pad = 18;
-  const headingHeight = exportHeadingHeight(heading);
   const callouts = target.querySelectorAll(".summary-callout");
   const metrics = tableColumnMetrics(table);
   const calloutHeight = callouts.length ? 84 : 0;
   const gap = callouts.length ? 16 : 0;
   const contentWidth = metrics.width + pad * 2;
-  const contentHeight = headingHeight + pad + calloutHeight + gap + metrics.height + pad;
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(contentWidth * scale);
-  canvas.height = Math.ceil((contentHeight + footerHeight) * scale);
   const ctx = canvas.getContext("2d");
+  const headingLayout = exportHeadingLayout(ctx, heading, metrics.width);
+  const headingHeight = headingLayout.height;
+  const contentHeight = headingHeight + pad + calloutHeight + gap + metrics.height + pad;
+  canvas.height = Math.ceil((contentHeight + footerHeight) * scale);
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.save();
   ctx.scale(scale, scale);
-  drawExportHeading(ctx, heading, pad, 0, metrics.width, headingHeight);
+  drawExportHeading(ctx, headingLayout, pad, 0, metrics.width);
   if (callouts.length) {
     drawSummaryCallouts(ctx, Array.from(callouts), pad, headingHeight + pad, metrics.width, calloutHeight);
   }

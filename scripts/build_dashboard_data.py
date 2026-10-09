@@ -785,7 +785,7 @@ def enrich_signals(source: dict[str, Any], results: dict[str, Any]) -> list[dict
                     "indicator": None,
                     "values": row_values,
                     "performance": [],
-                    "completed12M": row_values.get("12M") is not None,
+                    "completed12M": to_number(row_values.get("12M")) is not None,
                 }
             )
             continue
@@ -812,7 +812,7 @@ def enrich_signals(source: dict[str, Any], results: dict[str, Any]) -> list[dict
                 "indicator": start["indicator"],
                 "values": row_values,
                 "performance": performance,
-                "completed12M": row_values.get("12M") is not None,
+                "completed12M": to_number(row_values.get("12M")) is not None,
             }
         )
 

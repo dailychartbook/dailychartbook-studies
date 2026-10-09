@@ -49,6 +49,38 @@ class HeaderNormalizationTests(unittest.TestCase):
         self.assertEqual(builder.normalize_header(header), header)
 
 
+class SignalCompletionTests(unittest.TestCase):
+    @staticmethod
+    def signal_with_return(value, has_source=True):
+        source = {
+            "series": [{"date": "2026-07-15", "asset": 100.0, "indicator": 1.0}]
+            if has_source else []
+        }
+        results = {
+            "signalRows": [{
+                "date": "2026-07-14",
+                "values": {"Entry Date": "2026-07-15", "12M": value},
+            }]
+        }
+        return builder.enrich_signals(source, results)[0]
+
+    def test_unavailable_return_markers_do_not_complete_a_window(self):
+        for value in (None, "", " ", "—", "–", "-", "n/a", "#N/A", "pending", False):
+            for has_source in (True, False):
+                with self.subTest(value=value, has_source=has_source):
+                    signal = self.signal_with_return(value, has_source)
+                    self.assertFalse(signal["completed12M"])
+
+    def test_numeric_returns_including_zero_remain_available(self):
+        for value in (0, 0.0, -0.05, 0.12, "0%", "12.5%"):
+            for has_source in (True, False):
+                with self.subTest(value=value, has_source=has_source):
+                    signal = self.signal_with_return(value, has_source)
+                    self.assertTrue(signal["completed12M"])
+                    # Keep numeric results subject to source-path validation.
+                    self.assertLess(len(signal["performance"]), 253)
+
+
 class ResultsTableDetectionTests(unittest.TestCase):
     def test_finds_table_with_descriptive_horizon_headers(self) -> None:
         workbook = openpyxl.Workbook()
