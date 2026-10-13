@@ -1,6 +1,6 @@
 {
-  "title": "SPX Streak Without 1% Decline Hits 50 Days",
-  "description": "Forward return profile for SPX after it goes 50 consecutive days without a decline of 1%",
-  "slug": "spx-50d-without-1%-decline",
-  "publishedDate": "2026-10-09"
+  "title": "RUT Weekly Losing Streak Hits 6 Weeks",
+  "description": "Forward return profile for Russell 2000 after it closes lower for 6 consecutive weeks",
+  "slug": "rut-6w-losing-streak",
+  "publishedDate": "2026-10-13"
 }
